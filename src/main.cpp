@@ -8,9 +8,9 @@ int main()
     auto keyPress = Text::create("No key pressed");
     auto keyColor = Color::create(ANSIControlCodes::FG_RED);
 
-    auto hello = Element(Text::create("Hello world!")) | Color::create(ANSIControlCodes::FG_BLUE) | Center::create();
-    auto hello3 = Element(keyPress) | keyColor | Center::create();
-    auto hello2 = Element(Text::create("Hello world!")) | Bottom::create() | Color::create(ANSIControlCodes::FG_GREEN);
+    auto hello = Text::create("Hello world!") | Color::create(ANSIControlCodes::FG_BLUE) | Center::create();
+    auto hello3 = keyPress | keyColor | Center::create();
+    auto hello2 = Text::create("Hello world!") | Bottom::create() | Color::create(ANSIControlCodes::FG_GREEN);
 
     auto both = VContainer::create(std::vector<Element>{hello, hello3, hello2});
 

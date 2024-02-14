@@ -49,10 +49,19 @@ class Element : public std::shared_ptr<BaseElement>
     template <typename T> Element operator|(T tmplt) { return tmplt(*this); }
 };
 
+template <class D> class DerivedElement : public std::shared_ptr<D>
+{
+  public:
+    // using std::shared_ptr<D>::shared_ptr;
+    DerivedElement(std::shared_ptr<D> &&other) : std::shared_ptr<D>(std::move(other)) {}
+    // template <typename T, class... ArgTypes> Element decorate(ArgTypes... args) { return T::create(*this, args...); }
+    template <typename T> Element operator|(T tmplt) { return tmplt(*this); }
+};
+
 template <class E> class Creatable
 {
   public:
-    template <class... Types> static std::shared_ptr<E> create(Types... args) { return std::make_shared<E>(args...); }
+    template <class... Types> static DerivedElement<E> create(Types... args) { return std::make_shared<E>(args...); }
 };
 
 // class Decorator : public BaseElement
