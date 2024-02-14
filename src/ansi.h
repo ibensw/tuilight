@@ -18,7 +18,7 @@ constexpr std::string_view BOLD = "\033[1m";
 constexpr std::string_view DIM = "\033[2m";
 constexpr std::string_view UNDERLINE = "\033[4m";
 constexpr std::string_view BLINK = "\033[5m";
-constexpr std::string_view REVERSE = "\033[7m";
+constexpr std::string_view INVERT = "\033[7m";
 constexpr std::string_view HIDDEN = "\033[8m";
 
 // Foreground colors
