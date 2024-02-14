@@ -19,7 +19,7 @@ class Terminal
         std::cout << ANSIControlCodes::SHOW_CURSOR;
     }
 
-    void render(Element e)
+    void render(BaseElement e)
     {
         std::cout << ANSIControlCodes::clearScreen;
         auto size = ANSIControlCodes::getTerminalSize();
