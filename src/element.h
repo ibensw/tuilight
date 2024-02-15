@@ -110,7 +110,10 @@ class SubView : public View
 
     void write(std::size_t column, std::size_t row, Style style, std::string_view data) override
     {
-        if (column <= width && row <= height) {
+        if (column < width && row < height) {
+            if (column + data.size() > width) {
+                data = data.substr(0, width - column);
+            }
             parent.write(column + x, row + y, style, data);
         }
     }
@@ -352,6 +355,7 @@ auto Limit(std::size_t maxWidth = std::numeric_limits<std::size_t>::max(),
             {
                 if (view.width > maxWidth || view.height > maxHeight) {
                     SubView sv(view, 0, 0, std::min(maxWidth, view.width), std::min(maxHeight, view.height));
+                    inner->render(sv);
                 } else {
                     inner->render(view);
                 }
@@ -444,14 +448,13 @@ auto ScrollBox(std::size_t width = std::numeric_limits<std::size_t>::max(),
                     auto scrollBarSize = std::max<std::size_t>(1, view.height * view.height / innerHeight);
                     auto scrollOffset = (view.height - scrollBarSize) * *yOffset / (maxScroll);
                     while (scrollBarSize > 0) {
-                        char c = 222;
-                        std::string s(1, c);
-                        view.write(view.width - 1, scrollOffset, view.viewStyle, s);
+                        view.write(view.width - 1, scrollOffset, view.viewStyle, "#");
                         --scrollBarSize;
                         ++scrollOffset;
                     }
+                    viewWidth--;
                 }
-                ScrollView subview(view, view.width, view.height, xOffset ? *xOffset : 0, yOffset ? *yOffset : 0);
+                ScrollView subview(view, viewWidth, view.height, xOffset ? *xOffset : 0, yOffset ? *yOffset : 0);
                 inner->render(subview);
             }
             Size getSize() const override
@@ -483,3 +486,34 @@ auto ScrollBox(std::size_t width = std::numeric_limits<std::size_t>::max(),
 auto vScroll = [](std::size_t height, std::size_t *yOffset = nullptr, bool scrollbar = false) {
     return ScrollBox(std::numeric_limits<std::size_t>::max(), height, nullptr, yOffset, false, scrollbar);
 };
+
+auto Frame(BaseElement inner)
+{
+    class Impl : public DecoratorImpl
+    {
+      public:
+        using DecoratorImpl::DecoratorImpl;
+        void render(View &view) override
+        {
+            std::string horizontal = "#" + std::string(view.width - 2, '-') + "#";
+            view.write(0, 0, view.viewStyle, horizontal);
+            view.write(0, view.height - 1, view.viewStyle, horizontal);
+            for (std::size_t i = 1; i < view.height - 1; i++) {
+                view.write(0, i, view.viewStyle, "|");
+                view.write(view.width - 1, i, view.viewStyle, "|");
+            }
+            SubView sv(view, 1, 1, view.width - 2, view.height - 2);
+            inner->render(sv);
+        }
+        Size getSize() const override
+        {
+            auto size = inner->getSize();
+            size.minWidth = size.minWidth + 2;
+            size.minHeight = size.minHeight + 2;
+            size.maxWidth = std::max(size.maxWidth, size.maxWidth + 2);
+            size.maxHeight = std::max(size.maxHeight, size.maxHeight + 2);
+            return size;
+        };
+    };
+    return Element<Impl>(std::make_shared<Impl>(inner));
+}
