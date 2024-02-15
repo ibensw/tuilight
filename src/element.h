@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ansi.h"
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -8,47 +9,15 @@
 #include <string_view>
 #include <vector>
 
-template <class T> struct NoOverflow {
-    NoOverflow() = default;
-    NoOverflow(T value) : a(value) {}
-    NoOverflow operator+(NoOverflow b) const
-    {
-        if (a > 0 && b > std::numeric_limits<T>::max() - a) {
-            // Addition will overflow, return maximum value
-            return std::numeric_limits<int>::max();
-        } else if (a < 0 && b < std::numeric_limits<T>::min() - a) {
-            // Addition will underflow, return minimum value
-            return std::numeric_limits<T>::min();
-        } else {
-            // No overflow, perform addition
-            return a + b;
-        }
-    }
-    NoOverflow operator-(NoOverflow b) const
-    {
-        if (b > 0 && a < std::numeric_limits<T>::min() + b) {
-            return std::numeric_limits<T>::min();
-        } else if (b < 0 && a > std::numeric_limits<int>::max() + b) {
-            return std::numeric_limits<int>::max();
-        } else {
-            return a - b;
-        }
-    }
-    NoOverflow &operator+=(NoOverflow b)
-    {
-        *this = *this + b;
-        return *this;
-    }
-    NoOverflow &operator-=(NoOverflow b)
-    {
-        *this = *this - b;
-        return *this;
-    }
-
-    operator T() const { return a; }
+class Percent
+{
+  public:
+    Percent(double value) : value(value) {}
+    operator double() const { return value; }
+    operator double &() { return value; }
 
   private:
-    T a{};
+    double value;
 };
 
 struct Size {
@@ -60,10 +29,10 @@ struct Size {
         : minWidth(minWidth), minHeight(minHeight), maxWidth(maxWidth), maxHeight(maxHeight)
     {
     }
-    NoOverflow<std::size_t> minWidth{};
-    NoOverflow<std::size_t> minHeight{};
-    NoOverflow<std::size_t> maxWidth{};
-    NoOverflow<std::size_t> maxHeight{};
+    std::size_t minWidth{};
+    std::size_t minHeight{};
+    std::size_t maxWidth{};
+    std::size_t maxHeight{};
 };
 
 struct Style {
@@ -81,58 +50,76 @@ struct Style {
 class View
 {
   public:
-    View(std::size_t width, std::size_t height) : width(width), height(height), x(0), y(0) { set(0, 0); }
-    View(const View &parent, std::size_t xOffset, std::size_t yOffset, std::size_t width, std::size_t height)
-        : width(width), height(height), x(parent.x + xOffset), y(parent.y + yOffset)
-    {
-        parentStyle = style = parent.style;
-        set(0, 0);
-    }
-    ~View() { setStyle(parentStyle); }
-
-    void clear();
-    void set(std::size_t column, std::size_t row) { std::cout << ANSIControlCodes::moveCursorTo(x + column, y + row); }
-
-    void write(std::string_view data) { std::cout << data; }
-    void setStyle(const Style &newStyle)
-    {
-        write(ANSIControlCodes::RESET);
-        if (newStyle.bold) {
-            write(ANSIControlCodes::BOLD);
-        }
-        if (newStyle.underline) {
-            write(ANSIControlCodes::UNDERLINE);
-        }
-        if (newStyle.blink) {
-            write(ANSIControlCodes::BLINK);
-        }
-        if (newStyle.dim) {
-            write(ANSIControlCodes::DIM);
-        }
-        if (newStyle.invert) {
-            write(ANSIControlCodes::INVERT);
-        }
-        if (newStyle.hidden) {
-            write(ANSIControlCodes::HIDDEN);
-        }
-        if (newStyle.fgColor.has_value()) {
-            write(newStyle.fgColor.value());
-        }
-        if (newStyle.bgColor.has_value()) {
-            write(newStyle.bgColor.value());
-        }
-        style = newStyle;
-    }
-    Style getStyle() const { return style; }
+    View(std::size_t width, std::size_t height, Style style = {}) : width(width), height(height), viewStyle(style) {}
+    virtual ~View() = default;
+    virtual void write(std::size_t column, std::size_t row, Style style, std::string_view data) = 0;
 
     const std::size_t width;
     const std::size_t height;
 
-  private:
+    Style viewStyle;
+};
+
+class TerminalView : public View
+{
+  public:
+    TerminalView(std::size_t width, std::size_t height) : View(width, height) {}
+    void write(std::size_t column, std::size_t row, Style style, std::string_view data) override
+    {
+        std::cout << ANSIControlCodes::moveCursorTo(column, row);
+        printStyle(style);
+        std::cout << data;
+    };
+    void printStyle(const Style &style)
+    {
+        std::cout << ANSIControlCodes::RESET;
+        if (style.bold) {
+            std::cout << ANSIControlCodes::BOLD;
+        }
+        if (style.underline) {
+            std::cout << ANSIControlCodes::UNDERLINE;
+        }
+        if (style.blink) {
+            std::cout << ANSIControlCodes::BLINK;
+        }
+        if (style.dim) {
+            std::cout << ANSIControlCodes::DIM;
+        }
+        if (style.invert) {
+            std::cout << ANSIControlCodes::INVERT;
+        }
+        if (style.hidden) {
+            std::cout << ANSIControlCodes::HIDDEN;
+        }
+        if (style.fgColor.has_value()) {
+            std::cout << style.fgColor.value();
+        }
+        if (style.bgColor.has_value()) {
+            std::cout << style.bgColor.value();
+        }
+    }
+};
+
+class SubView : public View
+{
+  public:
+    SubView(View &parent, std::size_t x, std::size_t y, std::size_t width, std::size_t height)
+        : View(width, height, parent.viewStyle), parent(parent), x(x), y(y)
+    {
+    }
+
+    void write(std::size_t column, std::size_t row, Style style, std::string_view data) override
+    {
+        if (column <= width && row <= height) {
+            parent.write(column + x, row + y, style, data);
+        }
+    }
+
     const std::size_t x;
     const std::size_t y;
-    Style parentStyle;
-    Style style;
+
+  private:
+    View &parent;
 };
 
 class BaseElementImpl
@@ -172,9 +159,9 @@ auto Center(BaseElement inner)
         using DecoratorImpl::DecoratorImpl;
         void render(View &view) override
         {
-            View subview{view, view.width / 2 - inner->getSize().minWidth / 2, 0, inner->getSize().minWidth,
-                         inner->getSize().minHeight};
-            inner->render(subview);
+            SubView sv(view, view.width / 2 - inner->getSize().minWidth / 2, 0, inner->getSize().minWidth,
+                       inner->getSize().minHeight);
+            inner->render(sv);
         }
         Size getSize() const override { return inner->getSize(); };
     };
@@ -190,9 +177,7 @@ auto Color(std::string_view color)
             Impl(BaseElement inner, std::string_view color) : DecoratorImpl(inner), color(color) {}
             void render(View &view) override
             {
-                auto style = view.getStyle();
-                style.fgColor = color;
-                view.setStyle(style);
+                view.viewStyle.fgColor = color;
                 inner->render(view);
             }
             Size getSize() const override { return inner->getSize(); };
@@ -210,13 +195,10 @@ auto Text(const std::string &other)
     {
       public:
         Impl(std::string text) : text(text) {}
-        void setText(const std::string &newtext) { text = newtext; }
-
-        void render(View &view) override { view.write(text); }
+        void render(View &view) override { view.write(0, 0, view.viewStyle, text); }
 
         Size getSize() const override { return {text.size(), 1}; }
 
-      private:
         std::string text;
     };
 
@@ -234,9 +216,7 @@ template <typename T> auto Button(const std::string &label, T action)
         void render(View &view) override
         {
             if (isFocused()) {
-                auto style = view.getStyle();
-                style.invert = true;
-                view.setStyle(style);
+                view.viewStyle.invert = true;
                 TextImpl::render(view);
             } else {
                 TextImpl::render(view);
@@ -246,12 +226,12 @@ template <typename T> auto Button(const std::string &label, T action)
     return Element<Impl>(label);
 }
 
-template <class... Elements> auto VContainer(Elements... elements)
+auto VContainer(const std::vector<BaseElement> &elements)
 {
     class Impl : public BaseElementImpl
     {
       public:
-        Impl(std::vector<BaseElement> elements) : elements(std::move(elements)) {}
+        Impl(const std::vector<BaseElement> &elements) : elements(elements) {}
 
         void render(View &view) override
         {
@@ -269,8 +249,8 @@ template <class... Elements> auto VContainer(Elements... elements)
                     height += extraHeight;
                     slack -= extraHeight;
                 }
-                height = std::min<std::size_t>(height, view.height - offset);
-                View subview{view, 0, offset, view.width, height};
+                // height = std::min<std::size_t>(height, view.height - offset);
+                SubView subview{view, 0, offset, view.width, height};
                 element->render(subview);
                 offset += height;
             }
@@ -285,6 +265,10 @@ template <class... Elements> auto VContainer(Elements... elements)
                 size.minHeight += elemSize.minHeight;
                 size.maxWidth = std::max(size.maxWidth, elemSize.maxWidth);
                 size.maxHeight += elemSize.maxHeight;
+                if (size.maxHeight < elemSize.maxHeight) {
+                    // overflow
+                    size.maxHeight = std::numeric_limits<std::size_t>::max();
+                }
             }
             return size;
         }
@@ -292,7 +276,11 @@ template <class... Elements> auto VContainer(Elements... elements)
       private:
         std::vector<BaseElement> elements;
     };
-    return Element<Impl>(std::make_shared<Impl>(std::vector<BaseElement>{elements...}));
+    return Element<Impl>(std::make_shared<Impl>(elements));
+}
+template <class... Elements> auto VContainer(Elements... elements)
+{
+    return VContainer(std::vector<BaseElement>{elements...});
 }
 
 auto Bottom(BaseElement inner)
@@ -303,8 +291,8 @@ auto Bottom(BaseElement inner)
         using DecoratorImpl::DecoratorImpl;
         void render(View &view) override
         {
-            View subview{view, 0, view.height - inner->getSize().minHeight, inner->getSize().minWidth,
-                         inner->getSize().minHeight};
+            SubView subview{view, 0, view.height - inner->getSize().minHeight, inner->getSize().minWidth,
+                            inner->getSize().minHeight};
             inner->render(subview);
         }
         Size getSize() const override { return inner->getSize(); };
@@ -312,8 +300,8 @@ auto Bottom(BaseElement inner)
     return Element<Impl>(std::make_shared<Impl>(inner));
 }
 
-auto flex(std::size_t maxWidth = std::numeric_limits<std::size_t>::max(),
-          std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
+auto Stretch(std::size_t maxWidth = std::numeric_limits<std::size_t>::max(),
+             std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
 {
     return [=](BaseElement inner) {
         class Impl : public DecoratorImpl
@@ -340,13 +328,51 @@ auto flex(std::size_t maxWidth = std::numeric_limits<std::size_t>::max(),
     };
 }
 
-auto xflex(std::size_t maxWidth = std::numeric_limits<std::size_t>::max())
+auto xStretch(std::size_t maxWidth = std::numeric_limits<std::size_t>::max())
 {
-    return flex(maxWidth, std::numeric_limits<std::size_t>::max());
+    return Stretch(maxWidth, std::numeric_limits<std::size_t>::max());
 }
-auto yflex(std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
+auto yStretch(std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
 {
-    return flex(std::numeric_limits<std::size_t>::max(), maxHeight);
+    return Stretch(std::numeric_limits<std::size_t>::max(), maxHeight);
+}
+
+auto Limit(std::size_t maxWidth = std::numeric_limits<std::size_t>::max(),
+           std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
+{
+    return [=](BaseElement inner) {
+        class Impl : public DecoratorImpl
+        {
+          public:
+            Impl(BaseElement inner, std::size_t maxWidth, std::size_t maxHeight)
+                : DecoratorImpl(inner), maxWidth(maxWidth), maxHeight(maxHeight)
+            {
+            }
+            void render(View &view) override
+            {
+                if (view.width > maxWidth || view.height > maxHeight) {
+                    SubView sv(view, 0, 0, std::min(maxWidth, view.width), std::min(maxHeight, view.height));
+                } else {
+                    inner->render(view);
+                }
+            }
+
+            Size getSize() const override
+            {
+                auto size = inner->getSize();
+                size.minWidth = std::min(size.minWidth, maxWidth);
+                size.minHeight = std::min(size.minHeight, maxHeight);
+                size.maxWidth = std::min(size.maxWidth, maxWidth);
+                size.maxHeight = std::min(size.maxHeight, maxHeight);
+                return size;
+            };
+
+          private:
+            std::size_t maxWidth;
+            std::size_t maxHeight;
+        };
+        return Element<Impl>(std::make_shared<Impl>(inner, maxWidth, maxHeight));
+    };
 }
 
 auto makeStyle(void (*modifier)(Style &))
@@ -358,9 +384,7 @@ auto makeStyle(void (*modifier)(Style &))
             Impl(BaseElement inner, void (*modifier)(Style &)) : DecoratorImpl(inner), modifier(modifier) {}
             void render(View &view) override
             {
-                auto style = view.getStyle();
-                modifier(style);
-                view.setStyle(style);
+                modifier(view.viewStyle);
                 inner->render(view);
             }
             Size getSize() const override { return inner->getSize(); };
@@ -376,3 +400,86 @@ const auto Underline = makeStyle([](Style &s) { s.underline = true; });
 const auto Blink = makeStyle([](Style &s) { s.blink = true; });
 const auto Invert = makeStyle([](Style &s) { s.invert = true; });
 const auto Hidden = makeStyle([](Style &s) { s.hidden = true; });
+
+auto ScrollBox(std::size_t width = std::numeric_limits<std::size_t>::max(),
+               std::size_t height = std::numeric_limits<std::size_t>::max(), std::size_t *xOffset = nullptr,
+               std::size_t *yOffset = nullptr, bool xScrollbar = false, bool yScrollbar = false)
+{
+    return [=](BaseElement inner) {
+        class Impl : public DecoratorImpl
+        {
+          public:
+            Impl(BaseElement inner, std::size_t width, std::size_t height, std::size_t *xOffset, std::size_t *yOffset,
+                 bool xScrollbar, bool yScrollbar)
+                : DecoratorImpl(inner), width(width), height(height), xOffset(xOffset), yOffset(yOffset),
+                  xScrollbar(xScrollbar), yScrollbar(yScrollbar)
+            {
+            }
+            void render(View &view) override
+            {
+                class ScrollView : public SubView
+                {
+                  public:
+                    ScrollView(View &view, std::size_t width, std::size_t height, std::size_t xScroll,
+                               std::size_t yScroll)
+                        : SubView(view, 0, 0, width, height), xScroll(xScroll), yScroll(yScroll)
+                    {
+                    }
+                    std::size_t xScroll;
+                    std::size_t yScroll;
+
+                    void write(std::size_t column, std::size_t row, Style style, std::string_view data) override
+                    {
+                        SubView::write(column - xScroll, row - yScroll, style, data);
+                    }
+                };
+
+                auto viewWidth = view.width;
+                auto innerHeight = inner->getSize().minHeight;
+                if (yOffset && yScrollbar && innerHeight > view.height) {
+                    auto maxScroll = innerHeight - view.height;
+                    if (*yOffset > maxScroll) {
+                        *yOffset = maxScroll;
+                    }
+                    auto scrollBarSize = std::max<std::size_t>(1, view.height * view.height / innerHeight);
+                    auto scrollOffset = (view.height - scrollBarSize) * *yOffset / (maxScroll);
+                    while (scrollBarSize > 0) {
+                        char c = 222;
+                        std::string s(1, c);
+                        view.write(view.width - 1, scrollOffset, view.viewStyle, s);
+                        --scrollBarSize;
+                        ++scrollOffset;
+                    }
+                }
+                ScrollView subview(view, view.width, view.height, xOffset ? *xOffset : 0, yOffset ? *yOffset : 0);
+                inner->render(subview);
+            }
+            Size getSize() const override
+            {
+                auto size = inner->getSize();
+                if (yScrollbar) {
+                    size.minWidth++;
+                    size.maxWidth = std::max(size.maxWidth, size.maxWidth + 1);
+                }
+                size.minWidth = std::min<std::size_t>(size.minWidth, width);
+                size.minHeight = std::min<std::size_t>(size.minHeight, height);
+                size.maxWidth = std::min<std::size_t>(size.maxWidth, width);
+                size.maxHeight = std::min<std::size_t>(size.maxHeight, height);
+                return size;
+            };
+
+          private:
+            std::size_t width;
+            std::size_t height;
+            std::size_t *xOffset = nullptr;
+            std::size_t *yOffset = nullptr;
+            bool xScrollbar = false;
+            bool yScrollbar = false;
+        };
+        return Element<Impl>(std::make_shared<Impl>(inner, width, height, xOffset, yOffset, xScrollbar, yScrollbar));
+    };
+}
+
+auto vScroll = [](std::size_t height, std::size_t *yOffset = nullptr, bool scrollbar = false) {
+    return ScrollBox(std::numeric_limits<std::size_t>::max(), height, nullptr, yOffset, false, scrollbar);
+};

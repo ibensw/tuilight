@@ -23,7 +23,7 @@ class Terminal
     {
         std::cout << ANSIControlCodes::clearScreen;
         auto size = ANSIControlCodes::getTerminalSize();
-        View view{size.cols, size.rows};
+        TerminalView view{size.cols, size.rows};
         e->render(view);
         std::cout.flush();
     }
