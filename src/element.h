@@ -9,16 +9,16 @@
 #include <string_view>
 #include <vector>
 
-class Percent
-{
-  public:
-    Percent(double value) : value(value) {}
-    operator double() const { return value; }
-    operator double &() { return value; }
+// class Percent
+// {
+//   public:
+//     Percent(double value) : value(value) {}
+//     operator double() const { return value; }
+//     operator double &() { return value; }
 
-  private:
-    double value;
-};
+//   private:
+//     double value;
+// };
 
 struct Size {
     Size() = default;
@@ -131,8 +131,9 @@ class BaseElementImpl
     virtual void render(View &view) = 0;
     virtual Size getSize() const = 0;
     virtual bool focusable() const { return false; }
-    void setFocus(bool focus) { focused = focus; }
+    virtual void setFocus(bool focus) { focused = focus; }
     bool isFocused() const { return focused; }
+    virtual bool handleEvent(int event) { return false; }
 
   private:
     bool focused;
@@ -142,6 +143,10 @@ using BaseElement = std::shared_ptr<BaseElementImpl>;
 struct DecoratorImpl : BaseElementImpl {
     BaseElement inner;
     DecoratorImpl(BaseElement inner) : inner(std::move(inner)) {}
+    Size getSize() const override { return inner->getSize(); };
+    bool focusable() const override { return inner->focusable(); }
+    bool handleEvent(int event) override { return inner->handleEvent(event); }
+    void setFocus(bool focused) override { return inner->setFocus(focused); };
 };
 
 template <class D> class Element : public std::shared_ptr<D>
@@ -166,7 +171,6 @@ auto Center(BaseElement inner)
                        inner->getSize().minHeight);
             inner->render(sv);
         }
-        Size getSize() const override { return inner->getSize(); };
     };
     return Element<Impl>(std::make_shared<Impl>(inner));
 }
@@ -183,7 +187,6 @@ auto Color(std::string_view color)
                 view.viewStyle.fgColor = color;
                 inner->render(view);
             }
-            Size getSize() const override { return inner->getSize(); };
 
           private:
             std::string_view color;
@@ -199,7 +202,6 @@ auto Text(const std::string &other)
       public:
         Impl(std::string text) : text(text) {}
         void render(View &view) override { view.write(0, 0, view.viewStyle, text); }
-
         Size getSize() const override { return {text.size(), 1}; }
 
         std::string text;
@@ -214,7 +216,7 @@ template <typename T> auto Button(const std::string &label, T action)
     class Impl : public TextImpl
     {
       public:
-        Impl(std::string text) : TextImpl("[ " + text + " ]") {}
+        Impl(std::string text, T action) : TextImpl("[ " + text + " ]"), action(action) {}
         bool focusable() const override { return true; }
         void render(View &view) override
         {
@@ -225,8 +227,21 @@ template <typename T> auto Button(const std::string &label, T action)
                 TextImpl::render(view);
             }
         }
+        bool handleEvent(int event) override
+        {
+            switch (event) {
+                case '\n':
+                case ' ':
+                    action();
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        T action;
     };
-    return Element<Impl>(label);
+    return Element<Impl>(label, action);
 }
 
 auto VContainer(const std::vector<BaseElement> &elements)
@@ -234,7 +249,14 @@ auto VContainer(const std::vector<BaseElement> &elements)
     class Impl : public BaseElementImpl
     {
       public:
-        Impl(const std::vector<BaseElement> &elements) : elements(elements) {}
+        Impl(const std::vector<BaseElement> &elements) : elements(elements)
+        {
+            std::for_each(elements.cbegin(), elements.cend(), [this](const BaseElement &e) {
+                if (e->focusable()) {
+                    this->focusableChildren.push_back(e);
+                }
+            });
+        }
 
         void render(View &view) override
         {
@@ -276,8 +298,42 @@ auto VContainer(const std::vector<BaseElement> &elements)
             return size;
         }
 
+        virtual bool focusable() const { return !focusableChildren.empty(); }
+        virtual void setFocus(bool focus)
+        {
+            BaseElementImpl::setFocus(focus);
+            focusableChildren[focusedElement]->setFocus(focus);
+        }
+        virtual bool handleEvent(int event)
+        {
+            if (focusableChildren[focusedElement]->handleEvent(event)) {
+                return true;
+            }
+            switch (event) {
+                case '8':
+                    if (focusedElement > 0) {
+                        focusableChildren[focusedElement]->setFocus(false);
+                        --focusedElement;
+                        focusableChildren[focusedElement]->setFocus(true);
+                        return true;
+                    }
+                    break;
+                case '2':
+                    if (focusedElement < focusableChildren.size() - 1) {
+                        focusableChildren[focusedElement]->setFocus(false);
+                        ++focusedElement;
+                        focusableChildren[focusedElement]->setFocus(true);
+                        return true;
+                    }
+                    break;
+            }
+            return false;
+        }
+
       private:
         std::vector<BaseElement> elements;
+        std::vector<BaseElement> focusableChildren;
+        std::size_t focusedElement{};
     };
     return Element<Impl>(std::make_shared<Impl>(elements));
 }
@@ -298,7 +354,6 @@ auto Bottom(BaseElement inner)
                             inner->getSize().minHeight};
             inner->render(subview);
         }
-        Size getSize() const override { return inner->getSize(); };
     };
     return Element<Impl>(std::make_shared<Impl>(inner));
 }
@@ -391,7 +446,6 @@ auto makeStyle(void (*modifier)(Style &))
                 modifier(view.viewStyle);
                 inner->render(view);
             }
-            Size getSize() const override { return inner->getSize(); };
             void (*modifier)(Style &);
         };
         return Element<Impl>(std::make_shared<Impl>(inner, modifier));

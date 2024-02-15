@@ -3,6 +3,7 @@
 #include "ansi.h"
 #include "element.h"
 
+#include <atomic>
 #include <iostream>
 
 class Terminal
@@ -34,5 +35,27 @@ class Terminal
         std::cout.flush();
     }
 
+    void runInteractive(BaseElement e)
+    {
+        running = true;
+        if (e->focusable()) {
+            e->setFocus(true);
+        }
+        while (running) {
+            clear();
+            render(e);
+            auto key = getchar();
+            if (key == 27) {
+                running = false;
+            }
+            e->handleEvent(key);
+        }
+    }
+
+    void stop() { running = false; }
+
     void waitForInput();
+
+  private:
+    std::atomic<bool> running;
 };
