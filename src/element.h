@@ -3,6 +3,8 @@
 #include "ansi.h"
 #include <limits>
 #include <memory>
+#include <optional>
+#include <stack>
 #include <string_view>
 #include <vector>
 
@@ -64,6 +66,17 @@ struct Size {
     NoOverflow<std::size_t> maxHeight{};
 };
 
+struct Style {
+    bool bold = false;
+    bool underline = false;
+    bool blink = false;
+    bool dim = false;
+    bool invert = false;
+    bool hidden = false;
+    std::optional<std::string> fgColor{};
+    std::optional<std::string> bgColor{};
+};
+
 #include <iostream>
 class View
 {
@@ -72,13 +85,45 @@ class View
     View(const View &parent, std::size_t xOffset, std::size_t yOffset, std::size_t width, std::size_t height)
         : width(width), height(height), x(parent.x + xOffset), y(parent.y + yOffset)
     {
+        parentStyle = style = parent.style;
         set(0, 0);
     }
+    ~View() { setStyle(parentStyle); }
 
     void clear();
     void set(std::size_t column, std::size_t row) { std::cout << ANSIControlCodes::moveCursorTo(x + column, y + row); }
 
     void write(std::string_view data) { std::cout << data; }
+    void setStyle(const Style &newStyle)
+    {
+        write(ANSIControlCodes::RESET);
+        if (newStyle.bold) {
+            write(ANSIControlCodes::BOLD);
+        }
+        if (newStyle.underline) {
+            write(ANSIControlCodes::UNDERLINE);
+        }
+        if (newStyle.blink) {
+            write(ANSIControlCodes::BLINK);
+        }
+        if (newStyle.dim) {
+            write(ANSIControlCodes::DIM);
+        }
+        if (newStyle.invert) {
+            write(ANSIControlCodes::INVERT);
+        }
+        if (newStyle.hidden) {
+            write(ANSIControlCodes::HIDDEN);
+        }
+        if (newStyle.fgColor.has_value()) {
+            write(newStyle.fgColor.value());
+        }
+        if (newStyle.bgColor.has_value()) {
+            write(newStyle.bgColor.value());
+        }
+        style = newStyle;
+    }
+    Style getStyle() const { return style; }
 
     const std::size_t width;
     const std::size_t height;
@@ -86,6 +131,8 @@ class View
   private:
     const std::size_t x;
     const std::size_t y;
+    Style parentStyle;
+    Style style;
 };
 
 class BaseElementImpl
@@ -143,9 +190,10 @@ auto Color(std::string_view color)
             Impl(BaseElement inner, std::string_view color) : DecoratorImpl(inner), color(color) {}
             void render(View &view) override
             {
-                view.write(color);
+                auto style = view.getStyle();
+                style.fgColor = color;
+                view.setStyle(style);
                 inner->render(view);
-                view.write(ANSIControlCodes::RESET);
             }
             Size getSize() const override { return inner->getSize(); };
 
@@ -186,9 +234,10 @@ template <typename T> auto Button(const std::string &label, T action)
         void render(View &view) override
         {
             if (isFocused()) {
-                view.write(ANSIControlCodes::INVERT);
+                auto style = view.getStyle();
+                style.invert = true;
+                view.setStyle(style);
                 TextImpl::render(view);
-                view.write(ANSIControlCodes::RESET);
             } else {
                 TextImpl::render(view);
             }
@@ -300,19 +349,30 @@ auto yflex(std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
     return flex(std::numeric_limits<std::size_t>::max(), maxHeight);
 }
 
-#if 0
-
-
-class Bottom : public Decorator<Bottom>
+auto makeStyle(void (*modifier)(Style &))
 {
-  public:
-    using Decorator::Decorator;
-    void render(View &view) override
-    {
-        View subview{view, 0, view.height - inner->getSize().height, inner->getSize().width, inner->getSize().height};
-        inner->render(subview);
-    }
-    Size getSize() const override { return inner->getSize(); };
-};
+    return [modifier](BaseElement inner) {
+        class Impl : public DecoratorImpl
+        {
+          public:
+            Impl(BaseElement inner, void (*modifier)(Style &)) : DecoratorImpl(inner), modifier(modifier) {}
+            void render(View &view) override
+            {
+                auto style = view.getStyle();
+                modifier(style);
+                view.setStyle(style);
+                inner->render(view);
+            }
+            Size getSize() const override { return inner->getSize(); };
+            void (*modifier)(Style &);
+        };
+        return Element<Impl>(std::make_shared<Impl>(inner, modifier));
+    };
+}
 
-#endif
+const auto Bold = makeStyle([](Style &s) { s.bold = true; });
+const auto Dim = makeStyle([](Style &s) { s.dim = true; });
+const auto Underline = makeStyle([](Style &s) { s.underline = true; });
+const auto Blink = makeStyle([](Style &s) { s.blink = true; });
+const auto Invert = makeStyle([](Style &s) { s.invert = true; });
+const auto Hidden = makeStyle([](Style &s) { s.hidden = true; });
