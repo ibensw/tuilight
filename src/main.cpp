@@ -7,6 +7,19 @@ int main()
 {
     Terminal t;
 
+    struct UnderlineButton : detail::Button {
+        using detail::Button::Button;
+        void render(View &view) override
+        {
+            if (isFocused()) {
+                Element<detail::Text> copy(*this);
+                Underline(copy)->render(view);
+            } else {
+                Text::render(view);
+            }
+        }
+    };
+
     auto keyPress = Text("No key pressed");
     auto keyColor = Color(ANSIControlCodes::FG_RED);
 
@@ -33,7 +46,7 @@ int main()
     auto manyLines2 = VMenu(manyLines);
 
     std::size_t scroll = 0;
-    auto noquit = Button("Scroll down", [&] { manyLines2->prev(); });
+    auto noquit = Element<UnderlineButton>("Scroll down", [&] { manyLines2->prev(); });
 
     auto both = VContainer(hello, hello3, manyLines2 | Limit(30, 5), manystyles | VStretch(), hello2, noquit);
 

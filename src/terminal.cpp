@@ -34,7 +34,7 @@ void Terminal::clear()
 void Terminal::runInteractive(BaseElement e)
 {
     running = true;
-    e = e | NoEscape;
+    e = NoEscape(e);
     if (e->focusable()) {
         e->setFocus(true);
     }
