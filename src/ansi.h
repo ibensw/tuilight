@@ -110,65 +110,38 @@ inline void enterRawMode()
 // Function to restore terminal settings to normal
 inline void restoreTerminalSettings() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios); }
 
-// // Function to read a key press event
-// int readKeyPress()
-// {
-//     char c;
-//     if (read(STDIN_FILENO, &c, 1) != 1)
-//         return EOF;
-
-//     // Handle escape sequences for special keys
-//     if (c == '\x1b') {
-//         char seq[3];
-//         if (read(STDIN_FILENO, &seq[0], 1) != 1)
-//             return '\x1b';
-//         if (read(STDIN_FILENO, &seq[1], 1) != 1)
-//             return '\x1b';
-
-//         if (seq[0] == '[') {
-//             if (seq[1] >= '0' && seq[1] <= '9') {
-//                 if (read(STDIN_FILENO, &seq[2], 1) != 1)
-//                     return '\x1b';
-//                 if (seq[2] == '~') {
-//                     switch (seq[1]) {
-//                         case '1':
-//                             return HOME_KEY;
-//                         case '3':
-//                             return DELETE_KEY;
-//                         case '4':
-//                             return END_KEY;
-//                         case '5':
-//                             return PAGE_UP;
-//                         case '6':
-//                             return PAGE_DOWN;
-//                         case '7':
-//                             return HOME_KEY;
-//                         case '8':
-//                             return END_KEY;
-//                     }
-//                 }
-//             } else {
-//                 switch (seq[1]) {
-//                     case 'A':
-//                         return ARROW_UP;
-//                     case 'B':
-//                         return ARROW_DOWN;
-//                     case 'C':
-//                         return ARROW_RIGHT;
-//                     case 'D':
-//                         return ARROW_LEFT;
-//                     case 'H':
-//                         return HOME_KEY;
-//                     case 'F':
-//                         return END_KEY;
-//                 }
-//             }
-//         }
-
-//         return '\x1b';
-//     } else {
-//         return c;
-//     }
-// }
-
 } // namespace ANSIControlCodes
+
+enum class KeyEvent {
+    TIMEOUT = -2,
+    UNKNOWN = -1,
+    BACKSPACE = 8,
+    TAB = 9,
+    RETURN = 10,
+    ESCAPE = 27,
+    SPACE = 32,
+    INSERT = 256,
+    DELETE,
+    UP,
+    DOWN,
+    RIGHT,
+    LEFT,
+    END,
+    HOME,
+    BACKTAB,
+    PAGE_UP,
+    PAGE_DOWN,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+};
+inline KeyEvent CharEvent(char c) { return static_cast<KeyEvent>(c); }

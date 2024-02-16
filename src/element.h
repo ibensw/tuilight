@@ -34,7 +34,7 @@ class BaseElementImpl
     virtual bool focusable() const { return false; }
     virtual void setFocus(bool focus) { focused = focus; }
     bool isFocused() const { return focused; }
-    virtual bool handleEvent(int event) { return false; }
+    virtual bool handleEvent(KeyEvent event) { return false; }
     virtual void focusFirst() { setFocus(true); }
     virtual void focusLast() { setFocus(true); }
 
@@ -49,7 +49,7 @@ struct DecoratorImpl : BaseElementImpl {
     void render(View &view) override { inner->render(view); }
     ElementSize getSize() const override { return inner->getSize(); };
     bool focusable() const override { return inner->focusable(); }
-    bool handleEvent(int event) override { return inner->handleEvent(event); }
+    bool handleEvent(KeyEvent event) override { return inner->handleEvent(event); }
     void setFocus(bool focused) override
     {
         BaseElementImpl::setFocus(focused);
@@ -95,7 +95,7 @@ struct Button : Text {
     Button(std::string text, std::function<void(void)> action) : Text("[ " + text + " ]"), action(action) {}
     inline bool focusable() const override { return true; }
     void render(View &view) override;
-    bool handleEvent(int event) override;
+    bool handleEvent(KeyEvent event) override;
 
     std::function<void(void)> action;
 };
@@ -110,7 +110,7 @@ struct VContainer : BaseElementImpl {
         focusableChildren[focusedElement]->setFocus(focus);
         BaseElementImpl::setFocus(focus);
     }
-    bool handleEvent(int event) override;
+    bool handleEvent(KeyEvent event) override;
     BaseElement focusedChild() const { return focusableChildren.at(focusedElement); }
 
     std::vector<BaseElement> elements;
@@ -182,7 +182,7 @@ struct VMenu : BaseElementImpl {
     }
     bool next();
     bool prev();
-    bool handleEvent(int event) override;
+    bool handleEvent(KeyEvent event) override;
     BaseElement focusedChild() const { return elements.at(focusedIndex); }
 
   private:
@@ -194,7 +194,7 @@ struct VMenu : BaseElementImpl {
 
 struct NoEscape : DecoratorImpl {
     using DecoratorImpl::DecoratorImpl;
-    bool handleEvent(int event) override;
+    bool handleEvent(KeyEvent event) override;
 };
 
 // auto makeStyle(void (*modifier)(Style &))

@@ -6,6 +6,11 @@
 int main()
 {
     Terminal t;
+    // while (true) {
+    //     // std::cout << std::hex << getchar() << std::endl;
+    //     std::cout << static_cast<int>(Terminal::keyPress()) << std::endl;
+    // }
+    // return 0;
 
     struct UnderlineButton : detail::Button {
         using detail::Button::Button;
@@ -46,9 +51,8 @@ int main()
     auto manyLines2 = VMenu(manyLines);
 
     std::size_t scroll = 0;
-    auto noquit = Element<UnderlineButton>("Scroll down", [&] { manyLines2->prev(); });
 
-    auto both = VContainer(hello, hello3, manyLines2 | Limit(30, 5), manystyles | VStretch(), hello2, noquit);
+    auto both = VContainer(hello, hello3, manyLines2 | Limit(30, 5), manystyles | VStretch(), hello2);
 
     t.runInteractive(both);
     t.clear();

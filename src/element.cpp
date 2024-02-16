@@ -38,11 +38,11 @@ void Button::render(View &view)
         Text::render(view);
     }
 }
-bool Button::handleEvent(int event)
+bool Button::handleEvent(KeyEvent event)
 {
     switch (event) {
-        case '\n':
-        case ' ':
+        case KeyEvent::RETURN:
+        case KeyEvent::SPACE:
             action();
             return true;
         default:
@@ -99,13 +99,14 @@ ElementSize VContainer::getSize() const
     return size;
 }
 
-bool VContainer::handleEvent(int event)
+bool VContainer::handleEvent(KeyEvent event)
 {
     if (focusableChildren[focusedElement]->handleEvent(event)) {
         return true;
     }
     switch (event) {
-        case '8':
+        case KeyEvent::UP:
+        case KeyEvent::BACKTAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement > 0) {
                 --focusedElement;
@@ -113,8 +114,8 @@ bool VContainer::handleEvent(int event)
                 return true;
             }
             break;
-        case '2':
-        case 9:
+        case KeyEvent::DOWN:
+        case KeyEvent::TAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement < focusableChildren.size() - 1) {
                 ++focusedElement;
@@ -276,16 +277,17 @@ bool VMenu::prev()
     }
     return false;
 }
-bool VMenu::handleEvent(int event)
+bool VMenu::handleEvent(KeyEvent event)
 {
     if (elements[focusedIndex]->handleEvent(event)) {
         return true;
     }
     switch (event) {
-        case 9: // tab
+        case KeyEvent::TAB:
+        case KeyEvent::BACKTAB:
             elements[focusedIndex]->setFocus(false);
             return false;
-        case '8':
+        case KeyEvent::UP:
             elements[focusedIndex]->setFocus(false);
             if (focusedIndex > 0) {
                 --focusedIndex;
@@ -293,7 +295,7 @@ bool VMenu::handleEvent(int event)
                 return true;
             }
             break;
-        case '2':
+        case KeyEvent::DOWN:
             elements[focusedIndex]->setFocus(false);
             if (focusedIndex < elements.size() - 1) {
                 ++focusedIndex;
@@ -305,15 +307,16 @@ bool VMenu::handleEvent(int event)
     return false;
 }
 
-bool NoEscape::handleEvent(int event)
+bool NoEscape::handleEvent(KeyEvent event)
 {
     if (!inner->handleEvent(event)) {
         switch (event) {
-            case '8':
+            case KeyEvent::UP:
+            case KeyEvent::BACKTAB:
                 inner->focusFirst();
                 break;
-            case '2':
-            case 9:
+            case KeyEvent::DOWN:
+            case KeyEvent::TAB:
                 inner->focusLast();
                 break;
         }
