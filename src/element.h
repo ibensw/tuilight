@@ -136,7 +136,7 @@ class BaseElementImpl
     virtual bool handleEvent(int event) { return false; }
 
   private:
-    bool focused;
+    bool focused = false;
 };
 using BaseElement = std::shared_ptr<BaseElementImpl>;
 
@@ -146,8 +146,13 @@ struct DecoratorImpl : BaseElementImpl {
     Size getSize() const override { return inner->getSize(); };
     bool focusable() const override { return inner->focusable(); }
     bool handleEvent(int event) override { return inner->handleEvent(event); }
-    void setFocus(bool focused) override { return inner->setFocus(focused); };
+    void setFocus(bool focused) override
+    {
+        BaseElementImpl::setFocus(focused);
+        return inner->setFocus(focused);
+    };
 };
+using BaseDecorator = std::shared_ptr<DecoratorImpl>;
 
 template <class D> class Element : public std::shared_ptr<D>
 {
@@ -195,19 +200,32 @@ auto Color(std::string_view color)
     };
 }
 
-auto Text(const std::string &other)
+auto Text(const std::string &other, bool fill = false)
 {
     class Impl : public BaseElementImpl
     {
       public:
-        Impl(std::string text) : text(text) {}
-        void render(View &view) override { view.write(0, 0, view.viewStyle, text); }
+        Impl(std::string text, bool fill = false) : text(text), fill(fill) {}
+        void render(View &view) override
+        {
+            view.write(0, 0, view.viewStyle, text);
+            if (fill) {
+                if (text.size() < view.width) {
+                    view.write(text.size(), 0, view.viewStyle, std::string(view.width - text.size(), ' '));
+                }
+                std::string empty(view.width, ' ');
+                for (std::size_t i = 1; i < view.height; ++i) {
+                    view.write(0, i, view.viewStyle, empty);
+                }
+            }
+        }
         Size getSize() const override { return {text.size(), 1}; }
 
         std::string text;
+        bool fill;
     };
 
-    return Element<Impl>(other);
+    return Element<Impl>(other, fill);
 }
 
 template <typename T> auto Button(const std::string &label, T action)
@@ -221,7 +239,7 @@ template <typename T> auto Button(const std::string &label, T action)
         void render(View &view) override
         {
             if (isFocused()) {
-                view.viewStyle.invert = true;
+                view.viewStyle.invert = !view.viewStyle.invert;
                 TextImpl::render(view);
             } else {
                 TextImpl::render(view);
@@ -301,8 +319,8 @@ auto VContainer(const std::vector<BaseElement> &elements)
         virtual bool focusable() const { return !focusableChildren.empty(); }
         virtual void setFocus(bool focus)
         {
-            BaseElementImpl::setFocus(focus);
             focusableChildren[focusedElement]->setFocus(focus);
+            BaseElementImpl::setFocus(focus);
         }
         virtual bool handleEvent(int event)
         {
@@ -311,16 +329,16 @@ auto VContainer(const std::vector<BaseElement> &elements)
             }
             switch (event) {
                 case '8':
+                    focusableChildren[focusedElement]->setFocus(false);
                     if (focusedElement > 0) {
-                        focusableChildren[focusedElement]->setFocus(false);
                         --focusedElement;
                         focusableChildren[focusedElement]->setFocus(true);
                         return true;
                     }
                     break;
                 case '2':
+                    focusableChildren[focusedElement]->setFocus(false);
                     if (focusedElement < focusableChildren.size() - 1) {
-                        focusableChildren[focusedElement]->setFocus(false);
                         ++focusedElement;
                         focusableChildren[focusedElement]->setFocus(true);
                         return true;
@@ -329,6 +347,7 @@ auto VContainer(const std::vector<BaseElement> &elements)
             }
             return false;
         }
+        BaseElement focusedChild() const { return focusableChildren.at(focusedElement); }
 
       private:
         std::vector<BaseElement> elements;
@@ -456,7 +475,7 @@ const auto Bold = makeStyle([](Style &s) { s.bold = true; });
 const auto Dim = makeStyle([](Style &s) { s.dim = true; });
 const auto Underline = makeStyle([](Style &s) { s.underline = true; });
 const auto Blink = makeStyle([](Style &s) { s.blink = true; });
-const auto Invert = makeStyle([](Style &s) { s.invert = true; });
+const auto Invert = makeStyle([](Style &s) { s.invert = !s.invert; });
 const auto Hidden = makeStyle([](Style &s) { s.hidden = true; });
 
 auto ScrollBox(std::size_t width = std::numeric_limits<std::size_t>::max(),
@@ -500,7 +519,7 @@ auto ScrollBox(std::size_t width = std::numeric_limits<std::size_t>::max(),
                         *yOffset = maxScroll;
                     }
                     auto scrollBarSize = std::max<std::size_t>(1, view.height * view.height / innerHeight);
-                    auto scrollOffset = (view.height - scrollBarSize) * *yOffset / (maxScroll);
+                    auto scrollOffset = ((view.height - scrollBarSize) * *yOffset + maxScroll / 2) / (maxScroll);
                     while (scrollBarSize > 0) {
                         view.write(view.width - 1, scrollOffset, view.viewStyle, "#");
                         --scrollBarSize;
@@ -570,4 +589,154 @@ auto Frame(BaseElement inner)
         };
     };
     return Element<Impl>(std::make_shared<Impl>(inner));
+}
+
+auto Selectable(BaseElement inner)
+{
+    class Impl : public DecoratorImpl
+    {
+      public:
+        Impl(BaseElement inner) : DecoratorImpl(inner) {}
+
+        bool focusable() const override { return true; }
+
+        void render(View &view) override
+        {
+            if (isFocused()) {
+                Invert(inner)->render(view);
+            } else {
+                return inner->render(view);
+            }
+        }
+
+        Size getSize() const override { return inner->getSize(); };
+    };
+    return Element<Impl>(std::make_shared<Impl>(inner));
+}
+
+auto VMenu(const std::vector<BaseElement> &elements)
+{
+    class Impl : public BaseElementImpl
+    {
+      public:
+        Impl(const std::vector<BaseElement> &elements) : elements(elements) {}
+
+        void render(View &view) override
+        {
+            auto size = getSize();
+            std::size_t slack{};
+            if (size.minHeight > view.height) {
+                scrolledValue = std::min(scrolledValue, size.minHeight - view.height);
+                auto minScroll = offsets[focusedIndex + 1] - static_cast<long>(view.height);
+                auto maxScroll = offsets[focusedIndex];
+                scrolledValue = std::clamp<long>(scrolledValue, minScroll, maxScroll);
+            } else {
+                scrolledValue = 0;
+                slack = view.height - size.minHeight;
+            }
+
+            auto offset = -scrolledValue;
+            for (auto &element : elements) {
+                auto elemSize = element->getSize();
+                std::size_t height = elemSize.minHeight;
+                if (elemSize.maxHeight > height && slack > 0) {
+                    auto extraHeight = std::min<std::size_t>(elemSize.maxHeight - elemSize.minHeight, slack);
+                    height += extraHeight;
+                    slack -= extraHeight;
+                }
+                // height = std::min<std::size_t>(height, view.height - offset);
+                SubView subview{view, 0, offset, view.width, height};
+                element->render(subview);
+                offset += height;
+            }
+        }
+
+        Size getSize() const override
+        {
+            Size size{};
+            offsets.clear();
+            for (auto &element : elements) {
+                offsets.push_back(size.minHeight);
+                auto elemSize = element->getSize();
+                size.minWidth = std::max(size.minWidth, elemSize.minWidth);
+                size.minHeight += elemSize.minHeight;
+                size.maxWidth = std::max(size.maxWidth, elemSize.maxWidth);
+                size.maxHeight += elemSize.maxHeight;
+                if (size.maxHeight < elemSize.maxHeight) {
+                    // overflow
+                    size.maxHeight = std::numeric_limits<std::size_t>::max();
+                }
+            }
+            offsets.push_back(size.minHeight);
+            return size;
+        }
+
+        virtual bool focusable() const { return !elements.empty(); }
+        virtual void setFocus(bool focus)
+        {
+            elements[focusedIndex]->setFocus(focus);
+            BaseElementImpl::setFocus(focus);
+        }
+        bool next()
+        {
+            std::size_t newFocus = focusedIndex;
+            elements[newFocus]->setFocus(false);
+            while (newFocus < elements.size() - 1) {
+                newFocus++;
+                if (elements[newFocus]->focusable()) {
+                    focusedIndex = newFocus;
+                    elements[newFocus]->setFocus(true);
+                    return true;
+                }
+            }
+            return false;
+        }
+        bool prev()
+        {
+            std::size_t newFocus = focusedIndex;
+            elements[newFocus]->setFocus(false);
+            while (newFocus > 0) {
+                newFocus--;
+                if (elements[newFocus]->focusable()) {
+                    focusedIndex = newFocus;
+                    elements[newFocus]->setFocus(true);
+                    return true;
+                }
+            }
+            return false;
+        }
+        virtual bool handleEvent(int event)
+        {
+            if (elements[focusedIndex]->handleEvent(event)) {
+                return true;
+            }
+            switch (event) {
+                case '8':
+                    elements[focusedIndex]->setFocus(false);
+                    if (focusedIndex > 0) {
+                        --focusedIndex;
+                        elements[focusedIndex]->setFocus(true);
+                        return true;
+                    }
+                    break;
+                case '2':
+                    elements[focusedIndex]->setFocus(false);
+                    if (focusedIndex < elements.size() - 1) {
+                        ++focusedIndex;
+                        elements[focusedIndex]->setFocus(true);
+                        return true;
+                    }
+                    break;
+            }
+            return false;
+        }
+        BaseElement focusedChild() const { return elements.at(focusedIndex); }
+
+      private:
+        std::vector<BaseElement> elements;
+        std::size_t focusedIndex{};
+        std::size_t scrolledValue{};
+        mutable std::vector<long> offsets;
+    };
+    return Element<Impl>(std::make_shared<Impl>(elements));
 }
