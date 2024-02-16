@@ -49,7 +49,7 @@ constexpr std::string_view SHOW_CURSOR = "\033[?25h";
 constexpr std::string_view clearScreen = "\033[2J\033[1;1H";
 
 // Move cursor to specified position (0-based index)
-std::string moveCursorTo(int col, int row)
+inline std::string moveCursorTo(int col, int row)
 {
     return "\033[" + std::to_string(row + 1) + ";" + std::to_string(col + 1) + "H";
 }
@@ -89,7 +89,7 @@ struct TerminalSize {
     std::size_t cols;
 };
 
-TerminalSize getTerminalSize()
+inline TerminalSize getTerminalSize()
 {
     struct winsize ws;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws);
@@ -99,7 +99,7 @@ TerminalSize getTerminalSize()
 // Function to enter raw mode
 static struct termios original_termios;
 
-void enterRawMode()
+inline void enterRawMode()
 {
     tcgetattr(STDIN_FILENO, &original_termios);
     struct termios raw = original_termios;
@@ -108,7 +108,7 @@ void enterRawMode()
 }
 
 // Function to restore terminal settings to normal
-void restoreTerminalSettings() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios); }
+inline void restoreTerminalSettings() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios); }
 
 // // Function to read a key press event
 // int readKeyPress()

@@ -2,59 +2,23 @@
 
 #include "ansi.h"
 #include "element.h"
-
 #include <atomic>
-#include <iostream>
 
-class Terminal
+class Terminal : public View
 {
   public:
-    Terminal()
-    {
-        ANSIControlCodes::enterRawMode();
-        std::cout << ANSIControlCodes::HIDE_CURSOR;
-    }
-    ~Terminal()
-    {
-        ANSIControlCodes::restoreTerminalSettings();
-        std::cout << ANSIControlCodes::RESET << ANSIControlCodes::SHOW_CURSOR;
-    }
+    Terminal();
+    ~Terminal();
 
-    void render(BaseElement e)
-    {
-        std::cout << ANSIControlCodes::clearScreen;
-        auto size = ANSIControlCodes::getTerminalSize();
-        TerminalView view{size.cols, size.rows};
-        e->render(view);
-        std::cout.flush();
-    }
-
-    void clear()
-    {
-        std::cout << ANSIControlCodes::clearScreen;
-        std::cout.flush();
-    }
-
-    void runInteractive(BaseElement e)
-    {
-        running = true;
-        if (e->focusable()) {
-            e->setFocus(true);
-        }
-        while (running) {
-            clear();
-            render(e);
-            auto key = getchar();
-            if (key == 27) {
-                running = false;
-            }
-            e->handleEvent(key);
-        }
-    }
-
+    void render(BaseElement e);
+    void clear();
+    void runInteractive(BaseElement e);
     void stop() { running = false; }
 
     void waitForInput();
+
+    void write(std::size_t column, std::size_t row, Style style, std::string_view data) override;
+    void printStyle(const Style &style);
 
   private:
     std::atomic<bool> running;
