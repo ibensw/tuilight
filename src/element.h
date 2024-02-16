@@ -337,6 +337,7 @@ auto VContainer(const std::vector<BaseElement> &elements)
                     }
                     break;
                 case '2':
+                case 9:
                     focusableChildren[focusedElement]->setFocus(false);
                     if (focusedElement < focusableChildren.size() - 1) {
                         ++focusedElement;
@@ -711,6 +712,9 @@ auto VMenu(const std::vector<BaseElement> &elements)
                 return true;
             }
             switch (event) {
+                case 9: // tab
+                    elements[focusedIndex]->setFocus(false);
+                    return false;
                 case '8':
                     elements[focusedIndex]->setFocus(false);
                     if (focusedIndex > 0) {

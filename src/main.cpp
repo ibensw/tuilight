@@ -32,10 +32,9 @@ int main()
     auto manyLines2 = VMenu(manyLines);
 
     std::size_t scroll = 0;
-    auto noquit = Button("Scroll down", [&] { scroll++; });
+    auto noquit = Button("Scroll down", [&] { manyLines2->prev(); });
 
-    auto both =
-        VContainer(hello, hello3, manyLines2 | Frame | Limit(30, 5) | Invert, manystyles | yStretch(), hello2, noquit);
+    auto both = VContainer(hello, hello3, manyLines2 | Frame | Limit(30, 5), manystyles | yStretch(), hello2, noquit);
 
     t.runInteractive(both);
     t.clear();

@@ -17,7 +17,7 @@ class Terminal
     ~Terminal()
     {
         ANSIControlCodes::restoreTerminalSettings();
-        std::cout << ANSIControlCodes::SHOW_CURSOR;
+        std::cout << ANSIControlCodes::RESET << ANSIControlCodes::SHOW_CURSOR;
     }
 
     void render(BaseElement e)
