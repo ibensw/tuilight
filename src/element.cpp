@@ -82,6 +82,13 @@ void VContainer::render(View &view)
     }
 }
 
+void VContainer::focusChild(std::size_t index)
+{
+    focusableChildren[focusedElement]->setFocus(false);
+    focusedElement = index;
+    focusableChildren[focusedElement]->setFocus(true);
+}
+
 ElementSize VContainer::getSize() const
 {
     ElementSize size{};
@@ -109,8 +116,7 @@ bool VContainer::handleEvent(KeyEvent event)
         case KeyEvent::BACKTAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement > 0) {
-                --focusedElement;
-                focusableChildren[focusedElement]->setFocus(true);
+                focusChild(focusedElement - 1);
                 return true;
             }
             break;
@@ -118,8 +124,7 @@ bool VContainer::handleEvent(KeyEvent event)
         case KeyEvent::TAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement < focusableChildren.size() - 1) {
-                ++focusedElement;
-                focusableChildren[focusedElement]->setFocus(true);
+                focusChild(focusedElement + 1);
                 return true;
             }
             break;
@@ -206,6 +211,14 @@ ElementSize Stretch::getSize() const
     auto size = inner->getSize();
     size.maxWidth = std::max<std::size_t>(size.maxWidth, maxWidth);
     size.maxHeight = std::max<std::size_t>(size.maxHeight, maxHeight);
+    return size;
+};
+
+ElementSize Shrink::getSize() const
+{
+    auto size = inner->getSize();
+    size.minWidth = std::min<std::size_t>(size.maxWidth, minWidth);
+    size.minHeight = std::min<std::size_t>(size.maxHeight, minHeight);
     return size;
 };
 

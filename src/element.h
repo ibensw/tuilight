@@ -111,8 +111,11 @@ struct VContainer : BaseElementImpl {
         focusableChildren[focusedElement]->setFocus(focus);
         BaseElementImpl::setFocus(focus);
     }
+    void focusChild(std::size_t index);
     bool handleEvent(KeyEvent event) override;
     BaseElement focusedChild() const { return focusableChildren.at(focusedElement); }
+    void focusFirst() override { focusChild(0); }
+    void focusLast() override { focusChild(focusableChildren.size() - 1); }
 
     std::vector<BaseElement> elements;
     std::vector<BaseElement> focusableChildren;
@@ -140,6 +143,17 @@ struct Stretch : DecoratorImpl {
 
     std::size_t maxWidth;
     std::size_t maxHeight;
+};
+
+struct Shrink : DecoratorImpl {
+    Shrink(BaseElement inner, std::size_t minWidth, std::size_t minHeight)
+        : DecoratorImpl(inner), minWidth(minWidth), minHeight(minHeight)
+    {
+    }
+    ElementSize getSize() const override;
+
+    std::size_t minWidth;
+    std::size_t minHeight;
 };
 
 struct Limit : DecoratorImpl {
@@ -260,6 +274,20 @@ inline auto HStretch(std::size_t maxWidth = std::numeric_limits<std::size_t>::ma
 inline auto VStretch(std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
 {
     return Stretch(std::numeric_limits<std::size_t>::max(), maxHeight);
+}
+
+inline auto Shrink(std::size_t minWidth = 0, std::size_t minHeight = 0)
+{
+    return [=](BaseElement inner) { return Element<detail::Shrink>(inner, minWidth, minHeight); };
+}
+
+inline auto HShrink(std::size_t maxWidth = std::numeric_limits<std::size_t>::max()) { return Shrink(maxWidth, 0); }
+inline auto VShrink(std::size_t minHeight = 0) { return Shrink(0, minHeight); }
+
+inline auto Fit(BaseElement inner)
+{
+    auto stretch = Stretch()(inner);
+    return Element<detail::Shrink>(inner, 0, 0);
 }
 
 inline auto Limit(std::size_t maxWidth = std::numeric_limits<std::size_t>::max(),
