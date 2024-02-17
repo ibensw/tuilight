@@ -29,6 +29,7 @@ struct ElementSize {
 class BaseElementImpl
 {
   public:
+    virtual ~BaseElementImpl() = default;
     virtual void render(View &view) = 0;
     virtual ElementSize getSize() const = 0;
     virtual bool focusable() const { return false; }

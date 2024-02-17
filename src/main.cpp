@@ -31,7 +31,7 @@ int main()
     auto hello = Text("Hello world!") | Color(ANSIControlCodes::FG_BLUE) | Center;
     auto hello3 = keyPress | keyColor | Center;
     auto quit = Button("Quit", [&] { t.stop(); });
-    auto hello2 = HContainer(Button("Quit", [&] { t.stop(); }), Button("Quit", [&] { t.stop(); }),
+    auto hello2 = HContainer(Button("Quit", [&] { t.stop(); }), Button("Quit", [&] { t.stop(); }) | HStretch(),
                              Button("Quit", [&] { t.stop(); }));
     auto manystyles = VContainer(Text("Test1") | Color(ANSIControlCodes::FG_RED) | Underline,
                                  Text("Test2") | Bold | Center, Text("Test3") | Dim);
