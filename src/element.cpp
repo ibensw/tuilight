@@ -127,6 +127,73 @@ bool VContainer::handleEvent(KeyEvent event)
     return false;
 }
 
+void HContainer::render(View &view)
+{
+    std::size_t offset{};
+    std::size_t slack{};
+    auto size = getSize();
+    if (view.width > size.minWidth) {
+        slack = view.width - size.minWidth;
+    }
+    for (auto &element : elements) {
+        auto elemSize = element->getSize();
+        std::size_t width = elemSize.minWidth;
+        if (elemSize.maxWidth > width && slack > 0) {
+            auto extraWidth = std::min<std::size_t>(elemSize.maxWidth - elemSize.minWidth, slack);
+            width += extraWidth;
+            slack -= extraWidth;
+        }
+        SubView subview{view, offset, 0, width, view.height};
+        element->render(subview);
+        offset += width;
+    }
+}
+
+ElementSize HContainer::getSize() const
+{
+    ElementSize size{};
+    for (auto &element : elements) {
+        auto elemSize = element->getSize();
+        size.minHeight = std::max(size.minHeight, elemSize.minHeight);
+        size.minWidth += elemSize.minWidth;
+        size.maxHeight = std::max(size.maxHeight, elemSize.maxHeight);
+        size.maxWidth += elemSize.maxWidth;
+        if (size.maxWidth < elemSize.maxWidth) {
+            // overflow
+            size.maxWidth = std::numeric_limits<std::size_t>::max();
+        }
+    }
+    return size;
+}
+
+bool HContainer::handleEvent(KeyEvent event)
+{
+    if (focusableChildren[focusedElement]->handleEvent(event)) {
+        return true;
+    }
+    switch (event) {
+        case KeyEvent::LEFT:
+        case KeyEvent::BACKTAB:
+            focusableChildren[focusedElement]->setFocus(false);
+            if (focusedElement > 0) {
+                --focusedElement;
+                focusableChildren[focusedElement]->setFocus(true);
+                return true;
+            }
+            break;
+        case KeyEvent::RIGHT:
+        case KeyEvent::TAB:
+            focusableChildren[focusedElement]->setFocus(false);
+            if (focusedElement < focusableChildren.size() - 1) {
+                ++focusedElement;
+                focusableChildren[focusedElement]->setFocus(true);
+                return true;
+            }
+            break;
+    }
+    return false;
+}
+
 void Bottom::render(View &view)
 {
     SubView subview{view, 0, view.height - inner->getSize().minHeight, inner->getSize().minWidth,

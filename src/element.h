@@ -118,6 +118,13 @@ struct VContainer : BaseElementImpl {
     std::size_t focusedElement{};
 };
 
+struct HContainer : VContainer {
+    HContainer(const std::vector<BaseElement> &elements) : VContainer(elements) {}
+    void render(View &view) override;
+    ElementSize getSize() const override;
+    bool handleEvent(KeyEvent event) override;
+};
+
 struct Bottom : DecoratorImpl {
     using DecoratorImpl::DecoratorImpl;
     void render(View &view) override;
@@ -229,6 +236,12 @@ inline auto VContainer(const std::vector<BaseElement> &elements) { return Elemen
 template <class... Elements> auto VContainer(Elements... elements)
 {
     return VContainer(std::vector<BaseElement>{elements...});
+}
+
+inline auto HContainer(const std::vector<BaseElement> &elements) { return Element<detail::HContainer>(elements); }
+template <class... Elements> auto HContainer(Elements... elements)
+{
+    return HContainer(std::vector<BaseElement>{elements...});
 }
 
 inline auto Bottom(BaseElement inner) { return Element<detail::Bottom>(inner); }

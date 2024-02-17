@@ -31,7 +31,8 @@ int main()
     auto hello = Text("Hello world!") | Color(ANSIControlCodes::FG_BLUE) | Center;
     auto hello3 = keyPress | keyColor | Center;
     auto quit = Button("Quit", [&] { t.stop(); });
-    auto hello2 = quit | Color(ANSIControlCodes::FG_GREEN);
+    auto hello2 = HContainer(Button("Quit", [&] { t.stop(); }), Button("Quit", [&] { t.stop(); }),
+                             Button("Quit", [&] { t.stop(); }));
     auto manystyles = VContainer(Text("Test1") | Color(ANSIControlCodes::FG_RED) | Underline,
                                  Text("Test2") | Bold | Center, Text("Test3") | Dim);
 
@@ -54,6 +55,6 @@ int main()
 
     auto both = VContainer(hello, hello3, manyLines2 | Limit(30, 5), manystyles | VStretch(), hello2);
 
-    t.runInteractive(both);
+    t.runInteractive(hello2);
     t.clear();
 }
