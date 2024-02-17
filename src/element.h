@@ -190,6 +190,7 @@ struct VMenu : BaseElementImpl {
     std::size_t focusedIndex{};
     std::size_t scrolledValue{};
     mutable std::vector<long> offsets;
+    std::size_t pageSize = 1;
 };
 
 struct NoEscape : DecoratorImpl {

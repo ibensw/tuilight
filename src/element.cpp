@@ -201,6 +201,7 @@ void Selectable::render(View &view)
 
 void VMenu::render(View &view)
 {
+    pageSize = view.height;
     auto size = getSize();
     std::size_t slack{};
     if (size.minHeight > view.height) {
@@ -288,20 +289,27 @@ bool VMenu::handleEvent(KeyEvent event)
             elements[focusedIndex]->setFocus(false);
             return false;
         case KeyEvent::UP:
-            elements[focusedIndex]->setFocus(false);
-            if (focusedIndex > 0) {
-                --focusedIndex;
-                elements[focusedIndex]->setFocus(true);
-                return true;
-            }
-            break;
+            return prev();
         case KeyEvent::DOWN:
-            elements[focusedIndex]->setFocus(false);
-            if (focusedIndex < elements.size() - 1) {
-                ++focusedIndex;
+            return next();
+        case KeyEvent::PAGE_UP:
+            if (focusedIndex > 0) {
+                elements[focusedIndex]->setFocus(false);
+                if (focusedIndex >= pageSize) {
+                    focusedIndex -= pageSize;
+                } else {
+                    focusedIndex = 0;
+                }
                 elements[focusedIndex]->setFocus(true);
-                return true;
             }
+            return true;
+        case KeyEvent::PAGE_DOWN:
+            if (focusedIndex < elements.size() - 1) {
+                elements[focusedIndex]->setFocus(false);
+                focusedIndex = std::min(elements.size() - 1, focusedIndex + pageSize);
+                elements[focusedIndex]->setFocus(true);
+            }
+            return true;
             break;
     }
     return false;
@@ -323,5 +331,4 @@ bool NoEscape::handleEvent(KeyEvent event)
     }
     return true;
 }
-
 }; // namespace detail

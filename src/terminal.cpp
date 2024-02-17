@@ -45,9 +45,6 @@ void Terminal::runInteractive(BaseElement e)
         clear();
         render(e);
         auto key = keyPress();
-        // if (key == KeyEvent::ESCAPE) {
-        //     running = false;
-        // }
         e->handleEvent(key);
     }
 }

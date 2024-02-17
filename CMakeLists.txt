@@ -9,3 +9,10 @@ add_library(${PROJECT_NAME} SHARED
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${PROJECT_VERSION})
 target_include_directories(${PROJECT_NAME} PUBLIC src)
+
+option(BUILD_DEV "Build the development testing executable" OFF)
+
+if(BUILD_DEV)
+    add_executable(main src/main.cpp)
+    target_link_libraries(main ${PROJECT_NAME})
+endif()
