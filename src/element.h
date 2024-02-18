@@ -235,7 +235,7 @@ struct PreRender : DecoratorImpl {
 struct KeyHander : DecoratorImpl {
     using Handler = std::function<bool(KeyEvent, BaseElement)>;
     KeyHander(BaseElement inner, Handler handler) : DecoratorImpl(inner), handler(handler) {}
-    bool handleEvent(KeyEvent event) override { handler(event, inner); }
+    bool handleEvent(KeyEvent event) override { return handler(event, inner); }
 
     Handler handler;
 };
