@@ -2,6 +2,7 @@
 #include "terminal.h"
 #include <array>
 #include <string>
+#include <thread>
 
 int main()
 {
@@ -13,9 +14,19 @@ int main()
     }
     auto a = VMenu(elements);
 
+    std::atomic<bool> running = true;
+    std::thread scroller([&]() {
+        while (running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            t.post([&](Terminal &, BaseElement) { a->next(); });
+        }
+    });
+
     auto b = Button("Quit", [&] { t.stop(); });
     auto both = VContainer(a | Fit, b);
 
     t.runInteractive(both);
+    running = false;
+    scroller.join();
     t.clear();
 }

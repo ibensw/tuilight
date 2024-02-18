@@ -113,6 +113,7 @@ inline void restoreTerminalSettings() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig
 } // namespace ANSIControlCodes
 
 enum class KeyEvent {
+    INTERRUPT = -3,
     TIMEOUT = -2,
     UNKNOWN = -1,
     BACKSPACE = 8,

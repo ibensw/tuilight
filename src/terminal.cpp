@@ -11,6 +11,8 @@ Terminal::Terminal()
     std::cout << ANSIControlCodes::HIDE_CURSOR;
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+
+    pipe(pipeFd);
 }
 
 Terminal::~Terminal()
@@ -45,7 +47,13 @@ void Terminal::runInteractive(BaseElement e)
         clear();
         render(e);
         auto key = keyPress();
-        e->handleEvent(key);
+        if (key > KeyEvent::UNKNOWN) {
+            e->handleEvent(key);
+        }
+        while (!callbacks.empty()) {
+            callbacks.back()(*this, e);
+            callbacks.pop_back();
+        }
     }
 }
 
@@ -84,22 +92,39 @@ void Terminal::printStyle(const Style &style)
     }
 }
 
-// Function to read a key press event
-KeyEvent Terminal::keyPress()
+void Terminal::post(std::function<void(Terminal &, BaseElement)> fun)
 {
-    const int TIMEOUT_MS = 1000; // Timeout in milliseconds
+    callbacks.push_front(fun);
+    char c = 'E';
+    ::write(pipeFd[1], &c, 1);
+}
 
+void Terminal::postKeyPress(KeyEvent event)
+{
+    post([event](Terminal &, BaseElement e) { e->handleEvent(event); });
+}
+
+// Function to read a key press event
+KeyEvent Terminal::keyPress(std::chrono::milliseconds timeout)
+{
     // Set up the pollfd structure for monitoring stdin
-    struct pollfd fds[1];
+    struct pollfd fds[2];
     fds[0].fd = STDIN_FILENO; // File descriptor for stdin
     fds[0].events = POLLIN;   // Poll for input events
+    fds[1].fd = pipeFd[0];    // File descriptor for pipe
+    fds[1].events = POLLIN;   // Poll for input events
 
-    int ret = poll(fds, 1, TIMEOUT_MS);
-    if (ret <= 0) {
+    int ret = poll(fds, 2, -1);
+    if (ret == 0) {
         return KeyEvent::TIMEOUT;
     }
+    if (fds[1].revents) {
+        char c;
+        ::read(fds[1].fd, &c, 1);
+        return KeyEvent::INTERRUPT;
+    }
 
-    char c = getchar();
+    auto c = getchar();
     if (c != 0x1b) {
         return CharEvent(c);
     }
