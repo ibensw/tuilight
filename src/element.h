@@ -220,11 +220,25 @@ struct NoEscape : DecoratorImpl {
     bool handleEvent(KeyEvent event) override;
 };
 
-// auto makeStyle(void (*modifier)(Style &))
-// {
-//     return [modifier](BaseElement inner) { return Element<Styler>(inner, modifier); };
-// }
+struct PreRender : DecoratorImpl {
+    using Hook = std::function<void(BaseElement, const View &)>;
+    PreRender(BaseElement inner, Hook hook) : DecoratorImpl(inner), hook(hook) {}
+    void render(View &view) override
+    {
+        hook(inner, view);
+        DecoratorImpl::render(view);
+    }
 
+    Hook hook;
+};
+
+struct KeyHander : DecoratorImpl {
+    using Handler = std::function<bool(KeyEvent, BaseElement)>;
+    KeyHander(BaseElement inner, Handler handler) : DecoratorImpl(inner), handler(handler) {}
+    bool handleEvent(KeyEvent event) override { handler(event, inner); }
+
+    Handler handler;
+};
 }; // namespace detail
 
 // template <typename T, typename... Args> auto make_element(Args... args)
@@ -320,3 +334,13 @@ inline auto Selectable(BaseElement inner) { return Element<detail::Selectable>(i
 inline auto VMenu(const std::vector<BaseElement> &elements) { return Element<detail::VMenu>(elements); }
 
 inline auto NoEscape(BaseElement inner) { return Element<detail::NoEscape>(inner); }
+
+inline auto PreRender(detail::PreRender::Hook hook)
+{
+    return [=](BaseElement inner) { return Element<detail::PreRender>(inner, hook); };
+}
+
+inline auto KeyHander(BaseElement inner, detail::KeyHander::Handler handler)
+{
+    return [=](BaseElement inner) { return Element<detail::KeyHander>(inner, handler); };
+};
