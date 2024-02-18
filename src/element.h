@@ -340,7 +340,7 @@ inline auto PreRender(detail::PreRender::Hook hook)
     return [=](BaseElement inner) { return Element<detail::PreRender>(inner, hook); };
 }
 
-inline auto KeyHander(BaseElement inner, detail::KeyHander::Handler handler)
+inline auto KeyHander(detail::KeyHander::Handler handler)
 {
     return [=](BaseElement inner) { return Element<detail::KeyHander>(inner, handler); };
 };
