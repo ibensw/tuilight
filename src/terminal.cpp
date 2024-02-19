@@ -105,7 +105,7 @@ void Terminal::postKeyPress(KeyEvent event)
 }
 
 // Function to read a key press event
-KeyEvent Terminal::keyPress(std::chrono::milliseconds timeout)
+KeyEvent Terminal::keyPress()
 {
     // Set up the pollfd structure for monitoring stdin
     struct pollfd fds[2];

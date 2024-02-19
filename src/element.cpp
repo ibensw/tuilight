@@ -391,6 +391,20 @@ bool VMenu::handleEvent(KeyEvent event)
             }
             return true;
             break;
+        case KeyEvent::HOME:
+            if (focusedIndex > 0) {
+                elements[focusedIndex]->setFocus(false);
+                focusedIndex = 0;
+                elements[focusedIndex]->setFocus(true);
+            }
+            break;
+        case KeyEvent::END:
+            if (focusedIndex < elements.size() - 1) {
+                elements[focusedIndex]->setFocus(false);
+                focusedIndex = elements.size() - 1;
+                elements[focusedIndex]->setFocus(true);
+            }
+            break;
     }
     return false;
 }
@@ -401,10 +415,12 @@ bool NoEscape::handleEvent(KeyEvent event)
         switch (event) {
             case KeyEvent::UP:
             case KeyEvent::BACKTAB:
+            case KeyEvent::LEFT:
                 inner->focusFirst();
                 break;
             case KeyEvent::DOWN:
             case KeyEvent::TAB:
+            case KeyEvent::RIGHT:
                 inner->focusLast();
                 break;
         }

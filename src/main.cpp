@@ -22,10 +22,21 @@ int main()
         }
     });
 
+    auto handle = [&](KeyEvent e, BaseElement be) {
+        if (be->handleEvent(e)) {
+            return true;
+        }
+        if (e == KeyEvent::ESCAPE) {
+            t.stop();
+            return true;
+        }
+        return false;
+    };
+
     auto b = Button("Quit", [&] { t.stop(); });
     auto both = VContainer(a | Fit, b);
 
-    t.runInteractive(both);
+    t.runInteractive(both | KeyHander(handle));
     running = false;
     scroller.join();
     t.clear();
