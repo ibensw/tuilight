@@ -1,7 +1,8 @@
-#include "element.h"
+#include "tuilight/element.h"
 
-namespace detail
+namespace wibens::tuilight::detail
 {
+
 void Center::render(View &view)
 {
     SubView sv(view, view.width / 2 - inner->getSize().minWidth / 2, 0, inner->getSize().minWidth,
@@ -9,9 +10,15 @@ void Center::render(View &view)
     inner->render(sv);
 }
 
-void Color::render(View &view)
+void ForegroundColor::render(View &view)
 {
     view.viewStyle.fgColor = color;
+    inner->render(view);
+}
+
+void BackgroundColor::render(View &view)
+{
+    view.viewStyle.bgColor = color;
     inner->render(view);
 }
 
@@ -38,11 +45,11 @@ void Button::render(View &view)
         Text::render(view);
     }
 }
-bool Button::handleEvent(KeyEvent event)
+bool Button::handleEvent(ansi::KeyEvent event)
 {
     switch (event) {
-        case KeyEvent::RETURN:
-        case KeyEvent::SPACE:
+        case ansi::KeyEvent::RETURN:
+        case ansi::KeyEvent::SPACE:
             action();
             return true;
         default:
@@ -106,22 +113,22 @@ ElementSize VContainer::getSize() const
     return size;
 }
 
-bool VContainer::handleEvent(KeyEvent event)
+bool VContainer::handleEvent(ansi::KeyEvent event)
 {
     if (focusableChildren[focusedElement]->handleEvent(event)) {
         return true;
     }
     switch (event) {
-        case KeyEvent::UP:
-        case KeyEvent::BACKTAB:
+        case ansi::KeyEvent::UP:
+        case ansi::KeyEvent::BACKTAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement > 0) {
                 focusChild(focusedElement - 1);
                 return true;
             }
             break;
-        case KeyEvent::DOWN:
-        case KeyEvent::TAB:
+        case ansi::KeyEvent::DOWN:
+        case ansi::KeyEvent::TAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement < focusableChildren.size() - 1) {
                 focusChild(focusedElement + 1);
@@ -171,14 +178,14 @@ ElementSize HContainer::getSize() const
     return size;
 }
 
-bool HContainer::handleEvent(KeyEvent event)
+bool HContainer::handleEvent(ansi::KeyEvent event)
 {
     if (focusableChildren[focusedElement]->handleEvent(event)) {
         return true;
     }
     switch (event) {
-        case KeyEvent::LEFT:
-        case KeyEvent::BACKTAB:
+        case ansi::KeyEvent::LEFT:
+        case ansi::KeyEvent::BACKTAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement > 0) {
                 --focusedElement;
@@ -186,8 +193,8 @@ bool HContainer::handleEvent(KeyEvent event)
                 return true;
             }
             break;
-        case KeyEvent::RIGHT:
-        case KeyEvent::TAB:
+        case ansi::KeyEvent::RIGHT:
+        case ansi::KeyEvent::TAB:
             focusableChildren[focusedElement]->setFocus(false);
             if (focusedElement < focusableChildren.size() - 1) {
                 ++focusedElement;
@@ -358,21 +365,21 @@ bool VMenu::prev()
     }
     return false;
 }
-bool VMenu::handleEvent(KeyEvent event)
+bool VMenu::handleEvent(ansi::KeyEvent event)
 {
     if (elements[focusedIndex]->handleEvent(event)) {
         return true;
     }
     switch (event) {
-        case KeyEvent::TAB:
-        case KeyEvent::BACKTAB:
+        case ansi::KeyEvent::TAB:
+        case ansi::KeyEvent::BACKTAB:
             elements[focusedIndex]->setFocus(false);
             return false;
-        case KeyEvent::UP:
+        case ansi::KeyEvent::UP:
             return prev();
-        case KeyEvent::DOWN:
+        case ansi::KeyEvent::DOWN:
             return next();
-        case KeyEvent::PAGE_UP:
+        case ansi::KeyEvent::PAGE_UP:
             if (focusedIndex > 0) {
                 elements[focusedIndex]->setFocus(false);
                 if (focusedIndex >= pageSize) {
@@ -383,7 +390,7 @@ bool VMenu::handleEvent(KeyEvent event)
                 elements[focusedIndex]->setFocus(true);
             }
             return true;
-        case KeyEvent::PAGE_DOWN:
+        case ansi::KeyEvent::PAGE_DOWN:
             if (focusedIndex < elements.size() - 1) {
                 elements[focusedIndex]->setFocus(false);
                 focusedIndex = std::min(elements.size() - 1, focusedIndex + pageSize);
@@ -391,14 +398,14 @@ bool VMenu::handleEvent(KeyEvent event)
             }
             return true;
             break;
-        case KeyEvent::HOME:
+        case ansi::KeyEvent::HOME:
             if (focusedIndex > 0) {
                 elements[focusedIndex]->setFocus(false);
                 focusedIndex = 0;
                 elements[focusedIndex]->setFocus(true);
             }
             break;
-        case KeyEvent::END:
+        case ansi::KeyEvent::END:
             if (focusedIndex < elements.size() - 1) {
                 elements[focusedIndex]->setFocus(false);
                 focusedIndex = elements.size() - 1;
@@ -409,22 +416,23 @@ bool VMenu::handleEvent(KeyEvent event)
     return false;
 }
 
-bool NoEscape::handleEvent(KeyEvent event)
+bool NoEscape::handleEvent(ansi::KeyEvent event)
 {
     if (!inner->handleEvent(event)) {
         switch (event) {
-            case KeyEvent::UP:
-            case KeyEvent::BACKTAB:
-            case KeyEvent::LEFT:
+            case ansi::KeyEvent::UP:
+            case ansi::KeyEvent::BACKTAB:
+            case ansi::KeyEvent::LEFT:
                 inner->focusFirst();
                 break;
-            case KeyEvent::DOWN:
-            case KeyEvent::TAB:
-            case KeyEvent::RIGHT:
+            case ansi::KeyEvent::DOWN:
+            case ansi::KeyEvent::TAB:
+            case ansi::KeyEvent::RIGHT:
                 inner->focusLast();
                 break;
         }
     }
     return true;
 }
-}; // namespace detail
+
+} // namespace wibens::tuilight::detail

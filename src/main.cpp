@@ -1,8 +1,10 @@
-#include "element.h"
-#include "terminal.h"
+#include "tuilight/element.h"
+#include "tuilight/terminal.h"
 #include <array>
 #include <string>
 #include <thread>
+
+using namespace wibens::tuilight;
 
 int main()
 {
@@ -15,12 +17,6 @@ int main()
     auto a = VMenu(elements);
 
     std::atomic<bool> running = true;
-    std::thread scroller([&]() {
-        while (running) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            t.post([&](Terminal &, BaseElement) { a->next(); });
-        }
-    });
 
     auto handle = [&](KeyEvent e, BaseElement be) {
         if (be->handleEvent(e)) {
@@ -38,6 +34,5 @@ int main()
 
     t.runInteractive(both | KeyHander(handle));
     running = false;
-    scroller.join();
     t.clear();
 }

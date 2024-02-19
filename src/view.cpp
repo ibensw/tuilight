@@ -1,4 +1,7 @@
-#include "view.h"
+#include "tuilight/view.h"
+
+namespace wibens::tuilight
+{
 
 SubView::SubView(View &parent, std::size_t x, std::size_t y, std::size_t width, std::size_t height)
     : View(width, height, parent.viewStyle), parent(parent), x(x), y(y)
@@ -14,3 +17,5 @@ void SubView::write(std::size_t column, std::size_t row, Style style, std::strin
         parent.write(column + x, row + y, style, data);
     }
 }
+
+} // namespace wibens::tuilight

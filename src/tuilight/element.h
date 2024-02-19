@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ansi.h"
+#include "tuilight/ansi.h"
 #include "view.h"
 #include <algorithm>
 #include <functional>
@@ -9,6 +9,9 @@
 #include <stack>
 #include <string_view>
 #include <vector>
+
+namespace wibens::tuilight
+{
 
 struct ElementSize {
     ElementSize() = default;
@@ -35,7 +38,7 @@ class BaseElementImpl
     virtual bool focusable() const { return false; }
     virtual void setFocus(bool focus) { focused = focus; }
     bool isFocused() const { return focused; }
-    virtual bool handleEvent(KeyEvent event) { return false; }
+    virtual bool handleEvent(ansi::KeyEvent event) { return false; }
     virtual void focusFirst() { setFocus(true); }
     virtual void focusLast() { setFocus(true); }
 
@@ -50,7 +53,7 @@ struct DecoratorImpl : BaseElementImpl {
     void render(View &view) override { inner->render(view); }
     ElementSize getSize() const override { return inner->getSize(); };
     bool focusable() const override { return inner->focusable(); }
-    bool handleEvent(KeyEvent event) override { return inner->handleEvent(event); }
+    bool handleEvent(ansi::KeyEvent event) override { return inner->handleEvent(event); }
     void setFocus(bool focused) override
     {
         BaseElementImpl::setFocus(focused);
@@ -76,10 +79,15 @@ struct Center : DecoratorImpl {
     void render(View &view) override;
 };
 
-struct Color : DecoratorImpl {
-    Color(BaseElement inner, std::string_view color) : DecoratorImpl(inner), color(color) {}
+struct ForegroundColor : DecoratorImpl {
+    ForegroundColor(BaseElement inner, Color color) : DecoratorImpl(inner), color(color) {}
     void render(View &view) override;
-    std::string_view color;
+    Color color;
+};
+
+struct BackgroundColor : ForegroundColor {
+    using ForegroundColor::ForegroundColor;
+    void render(View &view) override;
 };
 
 struct Text : BaseElementImpl {
@@ -96,7 +104,7 @@ struct Button : Text {
     Button(std::string text, std::function<void(void)> action) : Text("[ " + text + " ]"), action(action) {}
     inline bool focusable() const override { return true; }
     void render(View &view) override;
-    bool handleEvent(KeyEvent event) override;
+    bool handleEvent(ansi::KeyEvent event) override;
 
     std::function<void(void)> action;
 };
@@ -112,7 +120,7 @@ struct VContainer : BaseElementImpl {
         BaseElementImpl::setFocus(focus);
     }
     void focusChild(std::size_t index);
-    bool handleEvent(KeyEvent event) override;
+    bool handleEvent(ansi::KeyEvent event) override;
     BaseElement focusedChild() const { return focusableChildren.at(focusedElement); }
     void focusFirst() override { focusChild(0); }
     void focusLast() override { focusChild(focusableChildren.size() - 1); }
@@ -126,7 +134,7 @@ struct HContainer : VContainer {
     HContainer(const std::vector<BaseElement> &elements) : VContainer(elements) {}
     void render(View &view) override;
     ElementSize getSize() const override;
-    bool handleEvent(KeyEvent event) override;
+    bool handleEvent(ansi::KeyEvent event) override;
 };
 
 struct Bottom : DecoratorImpl {
@@ -204,7 +212,7 @@ struct VMenu : BaseElementImpl {
     }
     bool next();
     bool prev();
-    bool handleEvent(KeyEvent event) override;
+    bool handleEvent(ansi::KeyEvent event) override;
     BaseElement focusedChild() const { return elements.at(focusedIndex); }
 
   private:
@@ -217,7 +225,7 @@ struct VMenu : BaseElementImpl {
 
 struct NoEscape : DecoratorImpl {
     using DecoratorImpl::DecoratorImpl;
-    bool handleEvent(KeyEvent event) override;
+    bool handleEvent(ansi::KeyEvent event) override;
 };
 
 struct PreRender : DecoratorImpl {
@@ -233,25 +241,24 @@ struct PreRender : DecoratorImpl {
 };
 
 struct KeyHander : DecoratorImpl {
-    using Handler = std::function<bool(KeyEvent, BaseElement)>;
+    using Handler = std::function<bool(ansi::KeyEvent, BaseElement)>;
     KeyHander(BaseElement inner, Handler handler) : DecoratorImpl(inner), handler(handler) {}
-    bool handleEvent(KeyEvent event) override { return handler(event, inner); }
+    bool handleEvent(ansi::KeyEvent event) override { return handler(event, inner); }
 
     Handler handler;
 };
 }; // namespace detail
 
-// template <typename T, typename... Args> auto make_element(Args... args)
-// {
-//     return Element<T>(std::make_shared<T>(args...));
-// }
-
-// inline auto Center(BaseElement inner) { return make_element<detail::Center>(inner); }
 inline auto Center(BaseElement inner) { return Element<detail::Center>(inner); }
 
-inline auto Color(std::string_view color)
+inline auto ForegroundColor(Color color)
 {
-    return [color](BaseElement inner) { return Element<detail::Color>(inner, color); };
+    return [=](BaseElement inner) { return Element<detail::ForegroundColor>(inner, color); };
+}
+
+inline auto BackgroundColor(Color color)
+{
+    return [=](BaseElement inner) { return Element<detail::BackgroundColor>(inner, color); };
 }
 
 inline auto Text(const std::string &text, bool fill = false) { return Element<detail::Text>(text, fill); }
@@ -343,4 +350,6 @@ inline auto PreRender(detail::PreRender::Hook hook)
 inline auto KeyHander(detail::KeyHander::Handler handler)
 {
     return [=](BaseElement inner) { return Element<detail::KeyHander>(inner, handler); };
-};
+}
+
+} // namespace wibens::tuilight

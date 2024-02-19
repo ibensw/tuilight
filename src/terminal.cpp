@@ -1,40 +1,34 @@
-#include "terminal.h"
-#include "ansi.h"
+#include "tuilight/terminal.h"
+#include "tuilight/ansi.h"
 #include <iostream>
 #include <poll.h>
 
-Terminal::Terminal()
-    : View([] { return ANSIControlCodes::getTerminalSize().cols; }(),
-           [] { return ANSIControlCodes::getTerminalSize().rows; }()) // TODO
+namespace wibens::tuilight
 {
-    ANSIControlCodes::enterRawMode();
-    std::cout << ANSIControlCodes::HIDE_CURSOR;
+using namespace ansi;
+
+Terminal::Terminal() : restore(rawTerminal())
+{
+    showCursor(false);
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-
     pipe(pipeFd);
 }
 
-Terminal::~Terminal()
-{
-    ANSIControlCodes::restoreTerminalSettings();
-    std::cout << ANSIControlCodes::RESET << ANSIControlCodes::SHOW_CURSOR;
-}
+Terminal::~Terminal() { showCursor(true); }
 
 void Terminal::render(BaseElement e)
 {
-    std::cout << ANSIControlCodes::clearScreen;
-    auto size = ANSIControlCodes::getTerminalSize();
-    // TerminalView view{size.cols, size.rows};
+    clear();
+    moveCursor(0, 0);
+    auto size = getTerminalSize();
+    width = size.cols;
+    height = size.rows;
     e->render(*this);
     std::cout.flush();
 }
 
-void Terminal::clear()
-{
-    std::cout << ANSIControlCodes::clearScreen;
-    std::cout.flush();
-}
+void Terminal::clear() { ansi::clear(); }
 
 void Terminal::runInteractive(BaseElement e)
 {
@@ -59,36 +53,40 @@ void Terminal::runInteractive(BaseElement e)
 
 void Terminal::write(std::size_t column, std::size_t row, Style style, std::string_view data)
 {
-    std::cout << ANSIControlCodes::moveCursorTo(column, row);
+    moveCursor(column, row);
     printStyle(style);
     std::cout << data;
 };
 void Terminal::printStyle(const Style &style)
 {
-    std::cout << ANSIControlCodes::RESET;
+    setStyle(StyleCode::Reset);
     if (style.bold) {
-        std::cout << ANSIControlCodes::BOLD;
+        setStyle(StyleCode::Bold);
     }
     if (style.underline) {
-        std::cout << ANSIControlCodes::UNDERLINE;
+        setStyle(StyleCode::Underline);
     }
     if (style.blink) {
-        std::cout << ANSIControlCodes::BLINK;
+        setStyle(StyleCode::Blink);
     }
     if (style.dim) {
-        std::cout << ANSIControlCodes::DIM;
+        setStyle(StyleCode::Dim);
     }
     if (style.invert) {
-        std::cout << ANSIControlCodes::INVERT;
+        setStyle(StyleCode::Invert);
     }
     if (style.hidden) {
-        std::cout << ANSIControlCodes::HIDDEN;
+        setStyle(StyleCode::Hidden);
     }
     if (style.fgColor.has_value()) {
-        std::cout << style.fgColor.value();
+        ColorCode color = static_cast<ColorCode>(static_cast<unsigned>(style.fgColor.value()) +
+                                                 static_cast<unsigned>(ColorCode::Black));
+        setForegroundColor(color);
     }
     if (style.bgColor.has_value()) {
-        std::cout << style.bgColor.value();
+        ColorCode color = static_cast<ColorCode>(static_cast<unsigned>(style.fgColor.value()) +
+                                                 static_cast<unsigned>(ColorCode::Black));
+        setBackgroundColor(color);
     }
 }
 
@@ -170,3 +168,5 @@ KeyEvent Terminal::keyPress()
     }
     return KeyEvent::UNKNOWN;
 }
+
+} // namespace wibens::tuilight

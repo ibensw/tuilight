@@ -5,6 +5,10 @@
 #include <functional>
 #include <list>
 
+namespace wibens::tuilight
+{
+using ansi::KeyEvent;
+
 class Terminal : public View
 {
   public:
@@ -25,7 +29,9 @@ class Terminal : public View
     void postKeyPress(KeyEvent event);
 
   private:
+    ansi::TerminalRestorer restore;
     std::atomic<bool> running;
     std::list<std::function<void(Terminal &, BaseElement)>> callbacks; // No need for locks
     int pipeFd[2];
 };
+} // namespace wibens::tuilight
