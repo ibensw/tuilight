@@ -288,14 +288,8 @@ inline auto Stretch(std::size_t maxWidth = std::numeric_limits<std::size_t>::max
     return [=](BaseElement inner) { return Element<detail::Stretch>(inner, maxWidth, maxHeight); };
 }
 
-inline auto HStretch(std::size_t maxWidth = std::numeric_limits<std::size_t>::max())
-{
-    return Stretch(maxWidth, std::numeric_limits<std::size_t>::max());
-}
-inline auto VStretch(std::size_t maxHeight = std::numeric_limits<std::size_t>::max())
-{
-    return Stretch(std::numeric_limits<std::size_t>::max(), maxHeight);
-}
+inline auto HStretch(std::size_t maxWidth = std::numeric_limits<std::size_t>::max()) { return Stretch(maxWidth, 0); }
+inline auto VStretch(std::size_t maxHeight = std::numeric_limits<std::size_t>::max()) { return Stretch(0, maxHeight); }
 
 inline auto Shrink(std::size_t minWidth = 0, std::size_t minHeight = 0)
 {
@@ -305,11 +299,7 @@ inline auto Shrink(std::size_t minWidth = 0, std::size_t minHeight = 0)
 inline auto HShrink(std::size_t maxWidth = std::numeric_limits<std::size_t>::max()) { return Shrink(maxWidth, 0); }
 inline auto VShrink(std::size_t minHeight = 0) { return Shrink(0, minHeight); }
 
-inline auto Fit(BaseElement inner)
-{
-    auto stretch = Stretch()(inner);
-    return Element<detail::Shrink>(inner, 0, 0);
-}
+inline auto Fit(BaseElement inner) { return Element<detail::Shrink>(Stretch()(inner), 0, 0); }
 
 inline auto Limit(std::size_t maxWidth = std::numeric_limits<std::size_t>::max(),
                   std::size_t maxHeight = std::numeric_limits<std::size_t>::max())

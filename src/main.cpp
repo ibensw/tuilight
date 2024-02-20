@@ -11,8 +11,11 @@ int main()
     Terminal t;
 
     std::vector<BaseElement> elements;
-    for (int i = 0; i < 50; ++i) {
-        elements.push_back(Button("Test " + std::to_string(i), [] {}));
+    for (int i = 0; i < 4; ++i) {
+        // auto x = Text("left");
+        auto x = HContainer(Button("left", [] {}) | HStretch(), Button("right", [] {}));
+        elements.push_back(x);
+        // elements.push_back(HContainer(Text("left"), Text("right")));
     }
     auto a = VMenu(elements);
 
