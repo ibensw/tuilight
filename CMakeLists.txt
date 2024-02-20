@@ -5,7 +5,7 @@ project(tuilight VERSION 0.0.1 DESCRIPTION "A light TUI library")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-add_library(${PROJECT_NAME} SHARED
+add_library(${PROJECT_NAME} STATIC
 src/element.cpp
 src/terminal.cpp
 src/view.cpp

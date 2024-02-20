@@ -2,6 +2,7 @@
 #include "tuilight/ansi.h"
 #include <iostream>
 #include <poll.h>
+#include <stdexcept>
 
 namespace wibens::tuilight
 {
@@ -12,7 +13,9 @@ Terminal::Terminal() : restore(rawTerminal())
     showCursor(false);
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
-    pipe(pipeFd);
+    if (pipe(pipeFd) == -1) {
+        throw std::system_error(errno, std::generic_category(), "pipe failed");
+    }
 }
 
 Terminal::~Terminal() { showCursor(true); }
@@ -102,7 +105,9 @@ void Terminal::post(std::function<void(Terminal &, BaseElement)> fun)
 {
     callbacks.push_front(fun);
     char c = 'E';
-    ::write(pipeFd[1], &c, 1);
+    if (::write(pipeFd[1], &c, 1) == -1) {
+        throw std::system_error(errno, std::generic_category(), "write failed");
+    }
 }
 
 void Terminal::postKeyPress(KeyEvent event)
@@ -126,7 +131,9 @@ KeyEvent Terminal::keyPress()
     }
     if (pollFds[1].revents) {
         char c;
-        ::read(pollFds[1].fd, &c, 1);
+        if (::read(pollFds[1].fd, &c, 1) == -1) {
+            throw std::system_error(errno, std::generic_category(), "read failed");
+        }
         return KeyEvent::INTERRUPT;
     }
 
