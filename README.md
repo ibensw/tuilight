@@ -15,4 +15,4 @@ TODO
 
 ## Todo
 - Add unit tests
-- Re-render on window resize
+- Remove c++20 requirements (format in ansi.h)

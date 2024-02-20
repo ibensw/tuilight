@@ -1,5 +1,6 @@
 #include "tuilight/terminal.h"
 #include "tuilight/ansi.h"
+#include <csignal>
 #include <iostream>
 #include <poll.h>
 #include <stdexcept>
@@ -8,17 +9,37 @@ namespace wibens::tuilight
 {
 using namespace ansi;
 
+static Terminal *handlingTerminal = nullptr;
+
 Terminal::Terminal() : restore(rawTerminal())
 {
     showCursor(false);
     int flags = fcntl(STDIN_FILENO, F_GETFL, 0);
     fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK);
+
+    handlingTerminal = this;
+    struct sigaction sa;
+    sa.sa_handler = [](int sig) {
+        if (handlingTerminal != nullptr) {
+            handlingTerminal->post([](Terminal &, BaseElement) {});
+        }
+    };
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if (sigaction(SIGWINCH, &sa, nullptr) == -1) {
+        throw std::system_error(errno, std::generic_category(), "sigaction failed");
+    }
+
     if (pipe(pipeFd) == -1) {
         throw std::system_error(errno, std::generic_category(), "pipe failed");
     }
 }
 
-Terminal::~Terminal() { showCursor(true); }
+Terminal::~Terminal()
+{
+    showCursor(true);
+    handlingTerminal = nullptr;
+}
 
 void Terminal::render(BaseElement e)
 {
