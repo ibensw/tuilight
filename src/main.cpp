@@ -33,7 +33,7 @@ int main()
     };
 
     auto b = Button("Quit", [&] { t.stop(); });
-    auto both = VContainer(a | Fit, b);
+    auto both = VContainer(a | Fit | ForegroundColor(Color::Gray), b);
 
     t.runInteractive(both | KeyHander(handle));
     running = false;
