@@ -79,13 +79,13 @@ void Terminal::printStyle(const Style &style)
         setStyle(StyleCode::Hidden);
     }
     if (style.fgColor.has_value()) {
-        ColorCode color = static_cast<ColorCode>(static_cast<unsigned>(style.fgColor.value()) +
-                                                 static_cast<unsigned>(ColorCode::Black));
+        auto color = static_cast<ColorCode>(static_cast<unsigned>(style.fgColor.value()) +
+                                            static_cast<unsigned>(ColorCode::Black));
         setForegroundColor(color);
     }
     if (style.bgColor.has_value()) {
-        ColorCode color = static_cast<ColorCode>(static_cast<unsigned>(style.fgColor.value()) +
-                                                 static_cast<unsigned>(ColorCode::Black));
+        auto color = static_cast<ColorCode>(static_cast<unsigned>(style.bgColor.value()) +
+                                            static_cast<unsigned>(ColorCode::Black));
         setBackgroundColor(color);
     }
 }
@@ -106,19 +106,19 @@ void Terminal::postKeyPress(KeyEvent event)
 KeyEvent Terminal::keyPress()
 {
     // Set up the pollfd structure for monitoring stdin
-    struct pollfd fds[2];
-    fds[0].fd = STDIN_FILENO; // File descriptor for stdin
-    fds[0].events = POLLIN;   // Poll for input events
-    fds[1].fd = pipeFd[0];    // File descriptor for pipe
-    fds[1].events = POLLIN;   // Poll for input events
+    std::array<struct pollfd, 2> pollFds;
+    pollFds[0].fd = STDIN_FILENO; // File descriptor for stdin
+    pollFds[0].events = POLLIN;   // Poll for input events
+    pollFds[1].fd = pipeFd[0];    // File descriptor for pipe
+    pollFds[1].events = POLLIN;   // Poll for input events
 
-    int ret = poll(fds, 2, -1);
+    int ret = poll(pollFds.data(), pollFds.size(), -1);
     if (ret == 0) {
         return KeyEvent::TIMEOUT;
     }
-    if (fds[1].revents) {
+    if (pollFds[1].revents) {
         char c;
-        ::read(fds[1].fd, &c, 1);
+        ::read(pollFds[1].fd, &c, 1);
         return KeyEvent::INTERRUPT;
     }
 
@@ -126,9 +126,9 @@ KeyEvent Terminal::keyPress()
     if (c != 0x1b) {
         return CharEvent(c);
     }
-    char seq[4];
-    for (int i = 0; i < 4; ++i) {
-        seq[i] = getchar();
+    std::array<char, 4> seq;
+    for (auto &s : seq) {
+        s = getchar();
     }
     if (seq[0] != 0x5b) {
         return KeyEvent::ESCAPE;
