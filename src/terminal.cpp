@@ -79,8 +79,8 @@ void Terminal::printStyle(const Style &style)
         setStyle(StyleCode::Hidden);
     }
     if (style.fgColor.has_value()) {
-        auto color = static_cast<ColorCode>(static_cast<unsigned>(style.fgColor.value()) +
-                                            static_cast<unsigned>(ColorCode::Black));
+        auto code = static_cast<unsigned>(style.fgColor.value());
+        auto color = static_cast<ColorCode>(code + static_cast<unsigned>(ColorCode::Black));
         setForegroundColor(color);
     }
     if (style.bgColor.has_value()) {

@@ -15,6 +15,14 @@ enum class Color {
     Magenta,
     Cyan,
     White,
+    Gray,
+    BrightRed,
+    BrightGreen,
+    BrightYellow,
+    BrightBlue,
+    BrightMagenta,
+    BrightCyan,
+    BrightWhite,
 };
 
 struct Style {
